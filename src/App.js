@@ -36,7 +36,7 @@ const formatCurrency = (value) => {
   }).format(value);
 };
 
-function App() {
+function App({ keycloak }) {
   const [loading, setLoading] = useState(false);
   const [portfolioData, setPortfolioData] = useState(null);
   const [selectedTab, setSelectedTab] = useState('Portfolio Overview');
@@ -268,6 +268,20 @@ function App() {
           </button>
         </nav>
         <div className="header-right">
+          {keycloak && keycloak.authenticated && (
+            <>
+              <span className="header-username">
+                {keycloak.tokenParsed?.preferred_username || 'User'}
+              </span>
+              <button
+                className="header-icon"
+                title="Logout"
+                onClick={() => keycloak.logout()}
+              >
+                ⎋
+              </button>
+            </>
+          )}
           <button className="header-icon" title="Notifications">□</button>
           <button className="header-icon" title="Profile">👤</button>
           <button className="header-icon" title="Help">?</button>
