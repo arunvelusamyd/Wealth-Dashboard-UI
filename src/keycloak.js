@@ -1,12 +1,12 @@
 import Keycloak from 'keycloak-js';
 
-// Keycloak configuration for local development
-// Make sure these values match your Keycloak setup.
-const keycloak = new Keycloak({
-  url: 'http://localhost:8080', // Keycloak base URL
+export const keycloakConfig = {
+  url: 'http://localhost:8080',
   realm: 'myrealm',
   clientId: 'Wealth-Dashboard',
-});
+};
+
+const keycloak = new Keycloak(keycloakConfig);
 
 export default keycloak;
 
