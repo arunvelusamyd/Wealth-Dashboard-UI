@@ -1,0 +1,1 @@
+keycloak/keycloak-config/realms/*.json filter=git-crypt diff=git-crypt
