@@ -125,12 +125,12 @@ function App({ keycloak }) {
     setLoading(true);
     try {
       const [stocksRes, unitTrustsRes] = await Promise.all([
-        fetch('/data/Stocks_List_1.json'),
-        fetch('/data/Unit_Trust_List_1.json')
+        fetch('/api/portfolio/stocks'),
+        fetch('/api/portfolio/unit-trust')
       ]);
 
-      if (!stocksRes.ok) throw new Error(`Failed to load Stocks_List_1.json: ${stocksRes.status}`);
-      if (!unitTrustsRes.ok) throw new Error(`Failed to load Unit_Trust_List_1.json: ${unitTrustsRes.status}`);
+      if (!stocksRes.ok) throw new Error(`Failed to load stocks: ${stocksRes.status}`);
+      if (!unitTrustsRes.ok) throw new Error(`Failed to load unit trusts: ${unitTrustsRes.status}`);
 
       const stocksJson = await stocksRes.json();
       const unitTrustsJson = await unitTrustsRes.json();
@@ -140,7 +140,7 @@ function App({ keycloak }) {
 
       processData({ data: stocks }, unitTrusts);
     } catch (error) {
-      console.error('Error loading demo data:', error);
+      console.error('Error loading portfolio data:', error);
       processData({ data: [] }, []);
     }
   }, [processData]);
