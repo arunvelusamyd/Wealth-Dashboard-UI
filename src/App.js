@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Filler } from 'chart.js';
 import { Pie, Line } from 'react-chartjs-2';
 import './App.css';
@@ -41,6 +41,11 @@ function App({ keycloak }) {
   const [portfolioData, setPortfolioData] = useState(null);
   const [selectedTab, setSelectedTab] = useState('Portfolio Overview');
   const [selectedTimeframe, setSelectedTimeframe] = useState('1M');
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatEndRef = useRef(null);
 
   const processData = useCallback((stocksData, unitTrustsData) => {
     const stocks = stocksData.data || stocksData;
@@ -151,6 +156,38 @@ function App({ keycloak }) {
   useEffect(() => {
     loadDemoData();
   }, [loadDemoData]);
+
+  const sendMessage = useCallback(async () => {
+    if (!chatInput.trim() || chatLoading) return;
+    const userText = chatInput.trim();
+    setChatInput('');
+    setChatMessages(prev => [...prev, { role: 'user', text: userText }]);
+    setChatLoading(true);
+    try {
+      await keycloak.updateToken(30);
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${keycloak.token}`
+        },
+        body: JSON.stringify({ message: userText })
+      });
+      if (!res.ok) throw new Error(`Chat API error: ${res.status}`);
+      const data = await res.json();
+      setChatMessages(prev => [...prev, { role: 'assistant', text: data.response }]);
+    } catch (err) {
+      setChatMessages(prev => [...prev, { role: 'assistant', text: 'Sorry, I could not process your request. Please try again.' }]);
+    } finally {
+      setChatLoading(false);
+    }
+  }, [chatInput, chatLoading, keycloak]);
+
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages]);
 
   if (loading || !portfolioData) {
     return (
@@ -422,6 +459,61 @@ function App({ keycloak }) {
             </ul>
           </div>
         </div>
+        </div>
+      )}
+
+      {/* Floating Chat Button */}
+      <button
+        className="chat-fab"
+        onClick={() => setChatOpen(o => !o)}
+        title="Ask your portfolio assistant"
+      >
+        {chatOpen ? '✕' : '💬'}
+      </button>
+
+      {/* Chat Drawer */}
+      {chatOpen && (
+        <div className="chat-drawer">
+          <div className="chat-drawer-header">
+            <span>Portfolio Assistant</span>
+          </div>
+          <div className="chat-messages">
+            {chatMessages.length === 0 && (
+              <div className="chat-empty">
+                Ask me anything about your portfolio — holdings, P&amp;L, allocation, or fund details.
+              </div>
+            )}
+            {chatMessages.map((msg, i) => (
+              <div key={i} className={`chat-bubble chat-bubble--${msg.role}`}>
+                {msg.text}
+              </div>
+            ))}
+            {chatLoading && (
+              <div className="chat-bubble chat-bubble--assistant chat-thinking">
+                <span className="chat-dot"></span>
+                <span className="chat-dot"></span>
+                <span className="chat-dot"></span>
+              </div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
+          <div className="chat-input-row">
+            <input
+              className="chat-input"
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && sendMessage()}
+              placeholder="Ask about your portfolio..."
+              disabled={chatLoading}
+            />
+            <button
+              className="chat-send"
+              onClick={sendMessage}
+              disabled={chatLoading || !chatInput.trim()}
+            >
+              Send
+            </button>
+          </div>
         </div>
       )}
     </div>
