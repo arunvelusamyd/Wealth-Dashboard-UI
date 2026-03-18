@@ -124,9 +124,12 @@ function App({ keycloak }) {
   const loadDemoData = useCallback(async () => {
     setLoading(true);
     try {
+      await keycloak.updateToken(30);
+      const headers = { Authorization: `Bearer ${keycloak.token}` };
+
       const [stocksRes, unitTrustsRes] = await Promise.all([
-        fetch('/api/portfolio/stocks'),
-        fetch('/api/portfolio/unit-trust')
+        fetch('/api/portfolio/stocks', { headers }),
+        fetch('/api/portfolio/unit-trust', { headers })
       ]);
 
       if (!stocksRes.ok) throw new Error(`Failed to load stocks: ${stocksRes.status}`);
