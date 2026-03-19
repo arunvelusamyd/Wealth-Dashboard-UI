@@ -356,7 +356,7 @@ function App({ keycloak }) {
         {/* Charts Section */}
         <div className="charts-grid">
           {/* Portfolio Performance */}
-          <div className="chart-card">
+          <div className="chart-card" style={{ position: 'relative', overflow: 'hidden' }}>
             <div className="chart-header">
               <h3>Portfolio Performance</h3>
               <div className="timeframe-selector">
@@ -373,6 +373,9 @@ function App({ keycloak }) {
             </div>
             <div className="line-chart-container">
               {lineChartData && <Line data={lineChartData} options={lineChartOptions} />}
+            </div>
+            <div className="coming-soon-overlay">
+              <span className="coming-soon-text">Coming soon</span>
             </div>
           </div>
 
@@ -450,13 +453,97 @@ function App({ keycloak }) {
           </div>
 
           {/* Recent News & Insights */}
-          <div className="info-card">
+          <div className="info-card" style={{ position: 'relative', overflow: 'hidden' }}>
             <h3>Recent News & Insights</h3>
             <ul className="news-list">
               <li>Market Update: Tech Stocks Rally</li>
               <li>Investment Tips for 2024</li>
               <li>Global Economic Outlook</li>
             </ul>
+            <div className="coming-soon-overlay">
+              <span className="coming-soon-text">Coming soon</span>
+            </div>
+          </div>
+        </div>
+
+        {/* CPF & SRS Section */}
+        <div className="cpf-srs-section">
+          <h2 className="section-title">CPF & SRS</h2>
+          <div className="cpf-srs-grid">
+            {/* CPF Card */}
+            <div className="info-card cpf-card">
+              <h3>CPF Accounts</h3>
+              <table className="holdings-table">
+                <thead>
+                  <tr>
+                    <th>Account</th>
+                    <th>Balance</th>
+                    <th>Interest Rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Ordinary Account (OA)</td>
+                    <td>{formatCurrency(45200)}</td>
+                    <td className="change positive">2.5% p.a.</td>
+                  </tr>
+                  <tr>
+                    <td>Special Account (SA)</td>
+                    <td>{formatCurrency(28750)}</td>
+                    <td className="change positive">4.0% p.a.</td>
+                  </tr>
+                  <tr>
+                    <td>Medisave Account (MA)</td>
+                    <td>{formatCurrency(19300)}</td>
+                    <td className="change positive">4.0% p.a.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div className="cpf-total-row">
+                <span>Total CPF</span>
+                <span className="cpf-total-value">{formatCurrency(93250)}</span>
+              </div>
+            </div>
+
+            {/* SRS Card */}
+            <div className="info-card srs-card">
+              <h3>SRS Account</h3>
+              <div className="srs-balance-row">
+                <div className="srs-balance-block">
+                  <div className="srs-label">Total Balance</div>
+                  <div className="srs-value">{formatCurrency(38500)}</div>
+                </div>
+                <div className="srs-balance-block">
+                  <div className="srs-label">Annual Contribution</div>
+                  <div className="srs-value">{formatCurrency(15300)}</div>
+                </div>
+                <div className="srs-balance-block">
+                  <div className="srs-label">Tax Savings (Est.)</div>
+                  <div className="srs-value positive-text">{formatCurrency(3060)}</div>
+                </div>
+              </div>
+              <div className="srs-investments">
+                <div className="srs-inv-label">SRS Investments</div>
+                <table className="holdings-table">
+                  <thead>
+                    <tr>
+                      <th>Holding</th>
+                      <th>Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>STI ETF</td>
+                      <td>{formatCurrency(18200)}</td>
+                    </tr>
+                    <tr>
+                      <td>Cash (SRS)</td>
+                      <td>{formatCurrency(20300)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
         </div>
