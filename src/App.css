@@ -923,6 +923,161 @@
   cursor: not-allowed;
 }
 
+/* Mock data banner */
+.mock-banner {
+  background: #FFF8E1;
+  border: 1px solid #FFD54F;
+  border-radius: 6px;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: #7B5E00;
+  margin-bottom: 16px;
+}
+
+.mock-banner code {
+  background: rgba(0,0,0,0.07);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+/* ============================================================
+   Watchlist
+   ============================================================ */
+
+.watchlist-container {
+  max-width: 900px;
+}
+
+.watchlist-add-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.watchlist-input {
+  flex: 1;
+  max-width: 360px;
+  padding: 10px 16px;
+  font-size: 14px;
+  border: 1px solid #E0E0E0;
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 0.2s;
+  font-family: inherit;
+}
+
+.watchlist-input:focus {
+  border-color: #4A90E2;
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+}
+
+.watchlist-add-btn {
+  padding: 10px 20px;
+  background: #1E3A5F;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.watchlist-add-btn:hover:not(:disabled) {
+  background: #4A90E2;
+}
+
+.watchlist-add-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.watchlist-card {
+  margin-bottom: 0;
+}
+
+.watchlist-empty {
+  padding: 24px 0 8px;
+  font-size: 14px;
+  color: #888;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.watchlist-table td,
+.watchlist-table th {
+  vertical-align: middle;
+}
+
+.watchlist-symbol {
+  display: inline-block;
+  background: #EEF4FB;
+  color: #1E3A5F;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  font-family: 'Courier New', monospace;
+}
+
+.watchlist-date {
+  font-size: 12px;
+  color: #999;
+}
+
+.watchlist-remove-btn {
+  padding: 5px 12px;
+  background: white;
+  color: #E74C3C;
+  border: 1px solid #E74C3C;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.watchlist-remove-btn:hover {
+  background: #E74C3C;
+  color: white;
+}
+
+.watchlist-hint {
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 16px;
+}
+
+.watchlist-quick-add {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid #4A90E2;
+  background: white;
+  color: #4A90E2;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+  padding: 0;
+}
+
+.watchlist-quick-add:hover:not(:disabled) {
+  background: #4A90E2;
+  color: white;
+}
+
+.watchlist-quick-add.watched {
+  border-color: #50C878;
+  color: #50C878;
+  cursor: default;
+}
+
 @media (max-width: 480px) {
   .chat-drawer {
     right: 0;

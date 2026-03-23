@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Filler } from 'chart.js';
 import { Pie, Line } from 'react-chartjs-2';
+import { mockBanks, mockBankPortfolios } from './mockData';
+import { DEV_MODE } from './devConfig';
 import './App.css';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Filler);
@@ -23,15 +25,40 @@ function App({ keycloak }) {
   const [portfolioData, setPortfolioData] = useState(null);
   const [banks, setBanks]               = useState([]);
   const [selectedBank, setSelectedBank] = useState(null); // null = all banks
+  const [isMock, setIsMock]             = useState(false);
   const [selectedTab, setSelectedTab]   = useState('Portfolio Overview');
   const [selectedTimeframe, setSelectedTimeframe] = useState('1M');
   const [chatOpen, setChatOpen]         = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput]       = useState('');
   const [chatLoading, setChatLoading]   = useState(false);
+  const [watchlist, setWatchlist] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('wealthWatchlist') || '[]'); }
+    catch { return []; }
+  });
+  const [watchlistInput, setWatchlistInput] = useState('');
   const chatEndRef  = useRef(null);
   // Cache raw fetched data so bank switching never triggers a network call
   const rawData = useRef({ bankPortfolios: {}, allPerformance: null, allNews: null });
+
+  // Persist watchlist to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('wealthWatchlist', JSON.stringify(watchlist));
+  }, [watchlist]);
+
+  const addToWatchlist = useCallback((symbol, name) => {
+    const sym = symbol.trim().toUpperCase();
+    if (!sym) return;
+    setWatchlist(prev => {
+      if (prev.some(w => w.symbol === sym)) return prev;
+      return [...prev, { symbol: sym, name: name || sym, addedAt: new Date().toLocaleDateString('en-SG') }];
+    });
+    setWatchlistInput('');
+  }, []);
+
+  const removeFromWatchlist = useCallback((symbol) => {
+    setWatchlist(prev => prev.filter(w => w.symbol !== symbol));
+  }, []);
 
   // ── aggregate raw per-bank payloads into a single portfolio object ────────
   const processData = useCallback((bankPortfolios, performanceData, newsData) => {
@@ -168,6 +195,7 @@ function App({ keycloak }) {
     };
 
     setPortfolioData({
+      allStocks,
       totalValue,
       stocksTotal,
       unitTrustsTotal,
@@ -192,8 +220,26 @@ function App({ keycloak }) {
   }, []);
 
   // ── data loading ──────────────────────────────────────────────────────────
+  const applyPortfolios = useCallback((banksData, bankPortfolios, usedMock) => {
+    setBanks(banksData);
+    setIsMock(usedMock);
+    const allPerformance = Object.values(bankPortfolios).find(bp => bp.performance)?.performance
+      ?? { history: [], monthlyChanges: { stocks: 0, unitTrusts: 0 } };
+    const allNews = Object.values(bankPortfolios).find(bp => bp.news)?.news
+      ?? { items: [] };
+    rawData.current = { bankPortfolios, allPerformance, allNews };
+    processData(bankPortfolios, allPerformance, allNews);
+  }, [processData]);
+
   const loadData = useCallback(async () => {
     setLoading(true);
+
+    // Force mock mode (flip MOCK_MODE = true at the top of this file to enable)
+    if (DEV_MODE) {
+      applyPortfolios(mockBanks, mockBankPortfolios, true);
+      return;
+    }
+
     try {
       await keycloak.updateToken(30);
       const headers = { Authorization: `Bearer ${keycloak.token}` };
@@ -202,7 +248,6 @@ function App({ keycloak }) {
       const banksRes = await fetch('/api/banks', { headers });
       if (!banksRes.ok) throw new Error(`Failed to load banks: ${banksRes.status}`);
       const banksData = await banksRes.json();
-      setBanks(banksData);
 
       const availableBanks = banksData.filter(b => b.available);
 
@@ -221,22 +266,12 @@ function App({ keycloak }) {
         if (portfolioResults[i]) bankPortfolios[b.code] = portfolioResults[i];
       });
 
-      // Derive global performance/news from whichever bank provides them
-      const allPerformance = Object.values(bankPortfolios).find(bp => bp.performance)?.performance
-        ?? { history: [], monthlyChanges: { stocks: 0, unitTrusts: 0 } };
-      const allNews = Object.values(bankPortfolios).find(bp => bp.news)?.news
-        ?? { items: [] };
-
-      // Cache raw data so bank-filter switches never re-fetch
-      rawData.current = { bankPortfolios, allPerformance, allNews };
-
-      processData(bankPortfolios, allPerformance, allNews);
+      applyPortfolios(banksData, bankPortfolios, false);
     } catch (error) {
-      console.error('Error loading portfolio data:', error);
-      processData({}, { history: [], monthlyChanges: { stocks: 0, unitTrusts: 0 } }, { items: [] });
-      setBanks([]);
+      console.warn('API unavailable — falling back to mock data:', error.message);
+      applyPortfolios(mockBanks, mockBankPortfolios, true);
     }
-  }, [processData]);
+  }, [applyPortfolios]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -361,7 +396,7 @@ function App({ keycloak }) {
           <h1>Wealth Dashboard</h1>
         </div>
         <nav className="header-nav">
-          {['Portfolio Overview', 'Performance', 'Allocation', 'Reports'].map(tab => (
+          {['Portfolio Overview', 'Performance', 'Allocation', 'Reports', 'Watchlist'].map(tab => (
             <button
               key={tab}
               className={selectedTab === tab ? 'nav-tab active' : 'nav-tab'}
@@ -387,6 +422,119 @@ function App({ keycloak }) {
       </header>
 
       <div className="dashboard-content">
+
+        {/* ── Watchlist Tab ── */}
+        {selectedTab === 'Watchlist' && (
+          <div className="watchlist-container">
+            <h2 className="section-title">My Stock Watchlist</h2>
+
+            {/* Add stock form */}
+            <div className="watchlist-add-bar">
+              <input
+                className="watchlist-input"
+                value={watchlistInput}
+                onChange={e => setWatchlistInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addToWatchlist(watchlistInput, '')}
+                placeholder="Enter stock symbol (e.g. AAPL, TSLA)"
+              />
+              <button
+                className="watchlist-add-btn"
+                onClick={() => addToWatchlist(watchlistInput, '')}
+                disabled={!watchlistInput.trim()}
+              >
+                + Add to Watchlist
+              </button>
+            </div>
+
+            {/* Watchlist table */}
+            <div className="info-card watchlist-card">
+              <h3>Watched Stocks ({watchlist.length})</h3>
+              {watchlist.length === 0 ? (
+                <div className="watchlist-empty">
+                  No stocks in your watchlist yet. Add a stock symbol above or click <strong>+</strong> on a portfolio holding below.
+                </div>
+              ) : (
+                <table className="holdings-table watchlist-table">
+                  <thead>
+                    <tr>
+                      <th>Symbol</th>
+                      <th>Name</th>
+                      <th>Added</th>
+                      <th style={{ textAlign: 'right' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {watchlist.map((item) => (
+                      <tr key={item.symbol}>
+                        <td><span className="watchlist-symbol">{item.symbol}</span></td>
+                        <td>{item.name}</td>
+                        <td className="watchlist-date">{item.addedAt}</td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            className="watchlist-remove-btn"
+                            onClick={() => removeFromWatchlist(item.symbol)}
+                            title="Remove from watchlist"
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Portfolio holdings quick-add */}
+            {portfolioData.allStocks.length > 0 && (
+              <div className="info-card watchlist-card" style={{ marginTop: '20px' }}>
+                <h3>Your Portfolio Holdings</h3>
+                <p className="watchlist-hint">Click <strong>+</strong> to add a holding to your watchlist.</p>
+                <table className="holdings-table">
+                  <thead>
+                    <tr>
+                      <th></th>
+                      <th>Symbol</th>
+                      <th>Name</th>
+                      <th>Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {portfolioData.allStocks.map((s, i) => {
+                      const alreadyWatched = watchlist.some(w => w.symbol === (s.code || '').toUpperCase());
+                      return (
+                        <tr key={i}>
+                          <td style={{ width: '40px' }}>
+                            <button
+                              className={`watchlist-quick-add${alreadyWatched ? ' watched' : ''}`}
+                              onClick={() => !alreadyWatched && addToWatchlist(s.code, s.name)}
+                              disabled={alreadyWatched}
+                              title={alreadyWatched ? 'Already in watchlist' : 'Add to watchlist'}
+                            >
+                              {alreadyWatched ? '✓' : '+'}
+                            </button>
+                          </td>
+                          <td><span className="watchlist-symbol">{s.code}</span></td>
+                          <td>{s.name}</td>
+                          <td>{formatCurrency(s.amt || s.marketValueBaseCcy || 0)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {selectedTab !== 'Watchlist' && (<>
+
+        {/* ── Mock data banner ── */}
+        {isMock && (
+          <div className="mock-banner">
+            ⚠ Mock data — backend API is unreachable. Set <code>MOCK_MODE = false</code> or start the backend to use live data.
+          </div>
+        )}
 
         {/* ── Connected Banks ── */}
         {banks.length > 0 && (
@@ -651,6 +799,8 @@ function App({ keycloak }) {
             </div>
           </div>
         )}
+
+        </>)}
 
       </div>
 
