@@ -22,13 +22,16 @@ function App({ keycloak }) {
   const [loading, setLoading]           = useState(false);
   const [portfolioData, setPortfolioData] = useState(null);
   const [banks, setBanks]               = useState([]);
+  const [selectedBank, setSelectedBank] = useState(null); // null = all banks
   const [selectedTab, setSelectedTab]   = useState('Portfolio Overview');
   const [selectedTimeframe, setSelectedTimeframe] = useState('1M');
   const [chatOpen, setChatOpen]         = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput]       = useState('');
   const [chatLoading, setChatLoading]   = useState(false);
-  const chatEndRef = useRef(null);
+  const chatEndRef  = useRef(null);
+  // Cache raw fetched data so bank switching never triggers a network call
+  const rawData = useRef({ bankPortfolios: {}, allPerformance: null, allNews: null });
 
   // ── aggregate raw per-bank payloads into a single portfolio object ────────
   const processData = useCallback((bankPortfolios, performanceData, newsData) => {
@@ -218,13 +221,16 @@ function App({ keycloak }) {
         if (portfolioResults[i]) bankPortfolios[b.code] = portfolioResults[i];
       });
 
-      // Performance and news are sourced from whichever bank provides them (SC)
-      const performanceData = Object.values(bankPortfolios).find(bp => bp.performance)?.performance
+      // Derive global performance/news from whichever bank provides them
+      const allPerformance = Object.values(bankPortfolios).find(bp => bp.performance)?.performance
         ?? { history: [], monthlyChanges: { stocks: 0, unitTrusts: 0 } };
-      const newsData = Object.values(bankPortfolios).find(bp => bp.news)?.news
+      const allNews = Object.values(bankPortfolios).find(bp => bp.news)?.news
         ?? { items: [] };
 
-      processData(bankPortfolios, performanceData, newsData);
+      // Cache raw data so bank-filter switches never re-fetch
+      rawData.current = { bankPortfolios, allPerformance, allNews };
+
+      processData(bankPortfolios, allPerformance, allNews);
     } catch (error) {
       console.error('Error loading portfolio data:', error);
       processData({}, { history: [], monthlyChanges: { stocks: 0, unitTrusts: 0 } }, { items: [] });
@@ -233,6 +239,28 @@ function App({ keycloak }) {
   }, [processData]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // ── bank filter ───────────────────────────────────────────────────────────
+  const handleBankSelect = useCallback((bankCode) => {
+    const { bankPortfolios, allPerformance, allNews } = rawData.current;
+
+    // Toggle: clicking the active bank returns to "All"
+    const next = bankCode === selectedBank ? null : bankCode;
+    setSelectedBank(next);
+
+    if (next === null) {
+      // Show all banks
+      processData(bankPortfolios, allPerformance, allNews);
+    } else {
+      // Show only the selected bank's portfolio
+      const filtered = { [next]: bankPortfolios[next] };
+      // Use the selected bank's own performance/news when available, else empty
+      const perf = bankPortfolios[next]?.performance
+        ?? { history: [], monthlyChanges: { stocks: 0, unitTrusts: 0 } };
+      const news = bankPortfolios[next]?.news ?? { items: [] };
+      processData(filtered, perf, news);
+    }
+  }, [selectedBank, processData]);
 
   // ── chat ──────────────────────────────────────────────────────────────────
   const sendMessage = useCallback(async () => {
@@ -364,20 +392,42 @@ function App({ keycloak }) {
         {banks.length > 0 && (
           <div className="connected-banks">
             <span className="connected-banks-label">Connected Banks</span>
-            {banks.map(bank => (
-              <div
-                key={bank.code}
-                className={`bank-chip ${bank.available ? 'available' : 'unavailable'}`}
-                style={{ borderColor: bank.available ? bank.color : '#ddd' }}
-              >
-                <span
-                  className="bank-chip-dot"
-                  style={{ background: bank.available ? bank.color : '#ccc' }}
-                />
-                {bank.name}
-                {!bank.available && <span className="bank-chip-soon">Coming soon</span>}
-              </div>
-            ))}
+
+            {/* "All Banks" pill */}
+            <button
+              className={`bank-chip available${selectedBank === null ? ' selected' : ''}`}
+              style={{
+                borderColor: '#1E3A5F',
+                background: selectedBank === null ? '#1E3A5F' : 'white',
+              }}
+              onClick={() => selectedBank !== null && handleBankSelect(selectedBank)}
+            >
+              <span className="bank-chip-dot" style={{ background: selectedBank === null ? 'rgba(255,255,255,0.7)' : '#1E3A5F' }} />
+              All Banks
+            </button>
+
+            {banks.map(bank => {
+              const isSelected = selectedBank === bank.code;
+              return (
+                <button
+                  key={bank.code}
+                  className={`bank-chip ${bank.available ? 'available' : 'unavailable'}${isSelected ? ' selected' : ''}`}
+                  style={{
+                    borderColor: bank.available ? bank.color : '#ddd',
+                    background: isSelected ? bank.color : undefined,
+                  }}
+                  onClick={() => bank.available && handleBankSelect(bank.code)}
+                  disabled={!bank.available}
+                >
+                  <span
+                    className="bank-chip-dot"
+                    style={{ background: isSelected ? 'rgba(255,255,255,0.7)' : (bank.available ? bank.color : '#ccc') }}
+                  />
+                  {bank.name}
+                  {!bank.available && <span className="bank-chip-soon">Coming soon</span>}
+                </button>
+              );
+            })}
           </div>
         )}
 
