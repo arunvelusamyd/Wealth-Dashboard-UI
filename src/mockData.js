@@ -297,3 +297,20 @@ export const mockBankPortfolios = {
     news:         null,
   },
 };
+
+// ── Subscriptions / Scheduled Payments ───────────────────────────────────────
+// Used as the initial seed when localStorage is empty.
+// All edits made in the UI are persisted back to localStorage automatically.
+
+export const mockSubscriptions = [
+  { id: 1,  name: 'Netflix',            amount:   15.98, category: 'Streaming',       frequency: 'Monthly', billingDate: '1',  status: 'Active', addedAt: '01/01/2026' },
+  { id: 2,  name: 'Spotify',            amount:    9.90, category: 'Streaming',       frequency: 'Monthly', billingDate: '5',  status: 'Active', addedAt: '01/01/2026' },
+  { id: 3,  name: 'StarHub Broadband',  amount:   59.90, category: 'Utilities',       frequency: 'Monthly', billingDate: '20', status: 'Active', addedAt: '01/01/2026' },
+  { id: 4,  name: 'Gym Membership',     amount:   80.00, category: 'Health & Fitness',frequency: 'Monthly', billingDate: '1',  status: 'Active', addedAt: '01/01/2026' },
+  { id: 5,  name: 'Microsoft 365',      amount:   99.00, category: 'Software / SaaS', frequency: 'Yearly',  billingDate: '10', status: 'Active', addedAt: '01/01/2026' },
+  { id: 6,  name: 'Home Insurance',     amount: 1200.00, category: 'Insurance',       frequency: 'Yearly',  billingDate: '15', status: 'Active', addedAt: '01/01/2026' },
+  { id: 7,  name: 'Term Life Insurance',amount: 1800.00, category: 'Insurance',       frequency: 'Yearly',  billingDate: '3',  status: 'Active', addedAt: '01/01/2026' },
+  { id: 8,  name: 'Apple iCloud+',      amount:    3.98, category: 'Software / SaaS', frequency: 'Monthly', billingDate: '8',  status: 'Paused', addedAt: '01/01/2026' },
+  { id: 9,  name: 'Car Loan EMI',       amount:  850.00, category: 'Loan / EMI',      frequency: 'Monthly', billingDate: '25', status: 'Active', addedAt: '01/01/2026' },
+  { id: 10, name: 'NTUC Income Shield', amount:  600.00, category: 'Insurance',       frequency: 'Yearly',  billingDate: '12', status: 'Active', addedAt: '01/01/2026' },
+];
