@@ -5,28 +5,6 @@ import './App.css';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Filler);
 
-const generatePerformanceData = (currentValue) => {
-  // Generate simulated performance data for the last month
-  const days = 30;
-  const data = [];
-  const labels = [];
-  const baseValue = currentValue * 0.9; // Start 10% lower
-  
-  for (let i = 0; i < days; i++) {
-    const date = new Date();
-    date.setDate(date.getDate() - (days - i));
-    labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
-    
-    // Simulate gradual growth with some volatility
-    const progress = i / days;
-    const volatility = (Math.random() - 0.5) * 0.02;
-    const value = baseValue * (1 + progress * 0.1 + volatility);
-    data.push(value);
-  }
-  
-  return { labels, data };
-};
-
 const formatCurrency = (value) => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -36,72 +14,152 @@ const formatCurrency = (value) => {
   }).format(value);
 };
 
+// Filter out subtotal / grand-total rows that appear inside Stocks.json arrays
+const validStocks = (items) =>
+  (items || []).filter(item => item.code && item.name);
+
 function App({ keycloak }) {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading]           = useState(false);
   const [portfolioData, setPortfolioData] = useState(null);
-  const [selectedTab, setSelectedTab] = useState('Portfolio Overview');
+  const [banks, setBanks]               = useState([]);
+  const [selectedTab, setSelectedTab]   = useState('Portfolio Overview');
   const [selectedTimeframe, setSelectedTimeframe] = useState('1M');
-  const [chatOpen, setChatOpen] = useState(false);
+  const [chatOpen, setChatOpen]         = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
-  const [chatInput, setChatInput] = useState('');
-  const [chatLoading, setChatLoading] = useState(false);
+  const [chatInput, setChatInput]       = useState('');
+  const [chatLoading, setChatLoading]   = useState(false);
   const chatEndRef = useRef(null);
 
-  const processData = useCallback((stocksData, unitTrustsData) => {
-    const stocks = stocksData.data || stocksData;
-    const unitTrusts = unitTrustsData;
+  // ── aggregate raw per-bank payloads into a single portfolio object ────────
+  const processData = useCallback((bankPortfolios, performanceData, newsData) => {
+    let allStocks        = [];
+    let allUnitTrusts    = [];
+    let totalCash        = 0;
+    let cashTransactions = [];
+    let dividendIncome   = 0;
+    let allFixedDeposits = [];
+    let cpfData          = null;
+    const allSrsAccounts = [];   // one entry per bank that has SRS
 
-    // Calculate totals
-    const stocksTotal = stocks.reduce((sum, item) => {
-      const value = item.amt || item.marketValueBaseCcy || item.value || 0;
-      return sum + value;
-    }, 0);
+    Object.entries(bankPortfolios).forEach(([bankCode, bp]) => {
+      // ── Stocks (same format across all banks: { data: [...] }) ──────────
+      if (bp.stocks?.data) {
+        allStocks = allStocks.concat(validStocks(bp.stocks.data));
+      }
 
-    const unitTrustsTotal = unitTrusts.reduce((sum, item) => {
-      const value = item.marketValueBaseCcy || item.value || 0;
-      return sum + value;
-    }, 0);
+      // ── Unit Trusts ──────────────────────────────────────────────────────
+      if (Array.isArray(bp.unitTrusts)) {
+        // SC / UOB / OCBC: plain array [ { fundName, marketValueBaseCcy, ... } ]
+        allUnitTrusts = allUnitTrusts.concat(bp.unitTrusts);
+      } else if (bp.unitTrusts?.investment?.accounts) {
+        // DBS: { investment: { accounts: [ { marketValue: { displayBalance } } ] } }
+        const dbsUTs = bp.unitTrusts.investment.accounts
+          .filter(a => (a.marketValue?.displayBalance || 0) > 0)
+          .map(a => ({
+            fundName: a.productCodeDescription || a.accountNickname || 'Unit Trust',
+            fundCode: a.investmentId,
+            marketValueBaseCcy: a.marketValue?.displayBalance || 0,
+          }));
+        allUnitTrusts = allUnitTrusts.concat(dbsUTs);
+      }
 
-    // Calculate cash (placeholder - you can adjust this)
-    const cashBalance = 144880; // This can be calculated or fetched from data
+      // ── Cash ─────────────────────────────────────────────────────────────
+      // SC: { balance, recentTransactions, dividendIncome }
+      if (bp.cash) {
+        totalCash        += bp.cash.balance || 0;
+        cashTransactions  = cashTransactions.concat(bp.cash.recentTransactions || []);
+        dividendIncome   += bp.cash.dividendIncome || 0;
+      }
+      // UOB / OCBC / DBS: { casa: { accounts: [ { availableBalance: { displayBalance } } ] } }
+      if (bp.casa?.accounts) {
+        bp.casa.accounts.forEach(acct => {
+          totalCash += acct.availableBalance?.displayBalance || 0;
+        });
+      }
 
-    const totalValue = stocksTotal + unitTrustsTotal + cashBalance;
+      // ── Fixed Deposits ───────────────────────────────────────────────────
+      if (bp.fixedDeposits?.fixedDeposit?.accounts) {
+        allFixedDeposits = allFixedDeposits.concat(bp.fixedDeposits.fixedDeposit.accounts);
+      }
 
-    // Calculate percentage changes (simulated - you can calculate from historical data)
-    const stocksChange = 15.2;
-    const unitTrustsChange = 9.8;
-    const totalChange = 12.8;
+      // ── CPF (SC only) ────────────────────────────────────────────────────
+      if (bp.cpf) cpfData = bp.cpf;
 
-    // Get top 3 stocks
-    const topStocks = stocks
-      .map(item => ({
-        name: item.name || item.code,
-        code: item.code,
-        value: item.amt || item.marketValueBaseCcy || item.value || 0,
-        change: stocksChange // You can calculate actual change from historical data
-      }))
+      // ── SRS — normalize different bank formats into a common shape ───────
+      if (bp.srs) {
+        if (bp.srs.totalBalance !== undefined) {
+          // SC format: { totalBalance, annualContribution, taxSavings, investments[] }
+          allSrsAccounts.push({
+            bank: bankCode,
+            totalBalance: bp.srs.totalBalance,
+            annualContribution: bp.srs.annualContribution,
+            taxSavings: bp.srs.taxSavings,
+            investments: bp.srs.investments || [],
+          });
+        } else if (bp.srs.investment?.accounts) {
+          // DBS format: { investment: { accounts: [ { totalPortFolioValue: { displayBalance } } ] } }
+          const acct = bp.srs.investment.accounts[0];
+          const investments = [];
+          // Pull DBS SRS holdings from the companion SRS-Unit-Trusts file
+          if (bp.srsUnitTrusts?.SRSDetails) {
+            bp.srsUnitTrusts.SRSDetails.forEach(detail => {
+              detail.holdings
+                .filter(h => parseFloat(h.marketVal?.value || 0) > 0)
+                .forEach(h => investments.push({
+                  holding: h.productName,
+                  value: parseFloat(h.marketVal.value),
+                }));
+            });
+          }
+          allSrsAccounts.push({
+            bank: bankCode,
+            totalBalance: acct?.totalPortFolioValue?.displayBalance || 0,
+            annualContribution: null,
+            taxSavings: null,
+            investments,
+          });
+        }
+      }
+    });
+
+    // ── totals ───────────────────────────────────────────────────────────────
+    const stocksTotal = allStocks.reduce((sum, s) => sum + (s.amt || s.marketValueBaseCcy || 0), 0);
+    const unitTrustsTotal = allUnitTrusts.reduce((sum, u) => sum + (u.marketValueBaseCcy || 0), 0);
+    const fixedDepositsTotal = allFixedDeposits.reduce(
+      (sum, fd) => sum + (fd.principalBalance?.displayBalance || 0), 0
+    );
+    const totalValue = stocksTotal + unitTrustsTotal + totalCash + fixedDepositsTotal;
+
+    // ── performance ──────────────────────────────────────────────────────────
+    const history = performanceData.history || [];
+    const totalChange = history.length >= 2
+      ? (((history[history.length - 1].value - history[0].value) / history[0].value) * 100).toFixed(1)
+      : 0;
+    const stocksChange     = performanceData.monthlyChanges?.stocks    ?? 0;
+    const unitTrustsChange = performanceData.monthlyChanges?.unitTrusts ?? 0;
+
+    // ── derived display data ─────────────────────────────────────────────────
+    const topStocks = allStocks
+      .map(s => ({ name: s.name || s.code, code: s.code, value: s.amt || s.marketValueBaseCcy || 0 }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 3);
 
-    // Get top unit trusts
-    const topUnitTrusts = unitTrusts
-      .map(item => ({
-        name: item.fundName || `Fund ${item.fundCode}`,
-        value: item.marketValueBaseCcy || item.value || 0
-      }))
+    const topUnitTrusts = allUnitTrusts
+      .map(u => ({ name: u.fundName || u.fundCode, value: u.marketValueBaseCcy || 0 }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 2);
 
-    // Generate performance data (simulated - you can use real historical data)
-    const performanceData = generatePerformanceData(totalValue);
+    const lineChartData = {
+      labels: history.map(h => h.label),
+      data:   history.map(h => h.value),
+    };
 
-    // Asset allocation data
     const allocationData = {
-      labels: ['Stocks', 'Unit Trusts', 'Cash'],
+      labels: ['Stocks', 'Unit Trusts', 'Cash', 'Fixed Deposits'],
       datasets: [{
-        data: [stocksTotal, unitTrustsTotal, cashBalance],
-        backgroundColor: ['#4A90E2', '#50C878', '#FFD700'],
-        borderColor: ['#4A90E2', '#50C878', '#FFD700'],
+        data: [stocksTotal, unitTrustsTotal, totalCash, fixedDepositsTotal],
+        backgroundColor: ['#4A90E2', '#50C878', '#FFD700', '#FF6B6B'],
+        borderColor:     ['#4A90E2', '#50C878', '#FFD700', '#FF6B6B'],
         borderWidth: 1
       }]
     };
@@ -110,53 +168,73 @@ function App({ keycloak }) {
       totalValue,
       stocksTotal,
       unitTrustsTotal,
-      cashBalance,
+      cashBalance: totalCash,
+      fixedDepositsTotal,
       stocksChange,
       unitTrustsChange,
       totalChange,
       topStocks,
       topUnitTrusts,
-      performanceData,
+      allFixedDeposits,
+      lineChartData,
       allocationData,
-      stocksPercentage: (stocksTotal / totalValue) * 100,
-      unitTrustsPercentage: (unitTrustsTotal / totalValue) * 100,
-      cashPercentage: (cashBalance / totalValue) * 100
+      cashTransactions,
+      dividendIncome,
+      cpf: cpfData || { accounts: [], total: 0 },
+      allSrsAccounts,
+      news: newsData.items || [],
     });
 
     setLoading(false);
   }, []);
 
-  const loadDemoData = useCallback(async () => {
+  // ── data loading ──────────────────────────────────────────────────────────
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       await keycloak.updateToken(30);
       const headers = { Authorization: `Bearer ${keycloak.token}` };
 
-      const [stocksRes, unitTrustsRes] = await Promise.all([
-        fetch('/api/portfolio/stocks', { headers }),
-        fetch('/api/portfolio/unit-trust', { headers })
-      ]);
+      // 1. Fetch bank list
+      const banksRes = await fetch('/api/banks', { headers });
+      if (!banksRes.ok) throw new Error(`Failed to load banks: ${banksRes.status}`);
+      const banksData = await banksRes.json();
+      setBanks(banksData);
 
-      if (!stocksRes.ok) throw new Error(`Failed to load stocks: ${stocksRes.status}`);
-      if (!unitTrustsRes.ok) throw new Error(`Failed to load unit trusts: ${unitTrustsRes.status}`);
+      const availableBanks = banksData.filter(b => b.available);
 
-      const stocksJson = await stocksRes.json();
-      const unitTrustsJson = await unitTrustsRes.json();
+      // 2. Fetch all available bank portfolios in parallel
+      const portfolioResults = await Promise.all(
+        availableBanks.map(b =>
+          fetch(`/api/banks/${b.code}/portfolio`, { headers })
+            .then(r => r.ok ? r.json() : null)
+            .catch(() => null)
+        )
+      );
 
-      const stocks = Array.isArray(stocksJson?.data) ? stocksJson.data : [];
-      const unitTrusts = Array.isArray(unitTrustsJson) ? unitTrustsJson : [];
+      // Build map: { SC: {...}, UOB: {...}, ... }
+      const bankPortfolios = {};
+      availableBanks.forEach((b, i) => {
+        if (portfolioResults[i]) bankPortfolios[b.code] = portfolioResults[i];
+      });
 
-      processData({ data: stocks }, unitTrusts);
+      // Performance and news are sourced from whichever bank provides them (SC)
+      const performanceData = Object.values(bankPortfolios).find(bp => bp.performance)?.performance
+        ?? { history: [], monthlyChanges: { stocks: 0, unitTrusts: 0 } };
+      const newsData = Object.values(bankPortfolios).find(bp => bp.news)?.news
+        ?? { items: [] };
+
+      processData(bankPortfolios, performanceData, newsData);
     } catch (error) {
       console.error('Error loading portfolio data:', error);
-      processData({ data: [] }, []);
+      processData({}, { history: [], monthlyChanges: { stocks: 0, unitTrusts: 0 } }, { items: [] });
+      setBanks([]);
     }
   }, [processData]);
 
-  useEffect(() => {
-    loadDemoData();
-  }, [loadDemoData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
+  // ── chat ──────────────────────────────────────────────────────────────────
   const sendMessage = useCallback(async () => {
     if (!chatInput.trim() || chatLoading) return;
     const userText = chatInput.trim();
@@ -167,16 +245,13 @@ function App({ keycloak }) {
       await keycloak.updateToken(30);
       const res = await fetch('/api/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${keycloak.token}`
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${keycloak.token}` },
         body: JSON.stringify({ message: userText })
       });
       if (!res.ok) throw new Error(`Chat API error: ${res.status}`);
       const data = await res.json();
       setChatMessages(prev => [...prev, { role: 'assistant', text: data.response }]);
-    } catch (err) {
+    } catch {
       setChatMessages(prev => [...prev, { role: 'assistant', text: 'Sorry, I could not process your request. Please try again.' }]);
     } finally {
       setChatLoading(false);
@@ -184,9 +259,7 @@ function App({ keycloak }) {
   }, [chatInput, chatLoading, keycloak]);
 
   useEffect(() => {
-    if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
 
   if (loading || !portfolioData) {
@@ -200,12 +273,12 @@ function App({ keycloak }) {
     );
   }
 
-  // Prepare chart data only if portfolioData exists
-  const lineChartData = portfolioData ? {
-    labels: portfolioData.performanceData.labels,
+  // ── chart configs ─────────────────────────────────────────────────────────
+  const lineChartDataset = {
+    labels: portfolioData.lineChartData.labels,
     datasets: [{
       label: 'Portfolio Value',
-      data: portfolioData.performanceData.data,
+      data: portfolioData.lineChartData.data,
       borderColor: '#4A90E2',
       backgroundColor: 'rgba(74, 144, 226, 0.1)',
       fill: true,
@@ -213,113 +286,70 @@ function App({ keycloak }) {
       pointRadius: 0,
       pointHoverRadius: 5
     }]
-  } : null;
+  };
 
   const lineChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: {
-        display: false
-      },
+      legend: { display: false },
       tooltip: {
         mode: 'index',
         intersect: false,
-        callbacks: {
-          label: function(context) {
-            return formatCurrency(context.parsed.y);
-          }
-        }
+        callbacks: { label: ctx => formatCurrency(ctx.parsed.y) }
       }
     },
     scales: {
-      y: {
-        beginAtZero: false,
-        ticks: {
-          callback: function(value) {
-            return formatCurrency(value);
-          }
-        }
-      },
-      x: {
-        grid: {
-          display: false
-        }
-      }
+      y: { beginAtZero: false, ticks: { callback: v => formatCurrency(v) } },
+      x: { grid: { display: false } }
     }
   };
 
-  const pieChartOptions = portfolioData ? {
+  const pieChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: {
         position: 'right',
-        labels: {
-          usePointStyle: true,
-          padding: 15,
-          font: {
-            size: 12
-          }
-        }
+        labels: { usePointStyle: true, padding: 15, font: { size: 12 } }
       },
       tooltip: {
         callbacks: {
-          label: function(context) {
-            const value = context.parsed;
-            const percentage = ((value / portfolioData.totalValue) * 100).toFixed(0);
-            return `${context.label}: ${formatCurrency(value)} (${percentage}%)`;
+          label: ctx => {
+            const pct = ((ctx.parsed / portfolioData.totalValue) * 100).toFixed(0);
+            return `${ctx.label}: ${formatCurrency(ctx.parsed)} (${pct}%)`;
           }
         }
       }
     }
-  } : null;
+  };
 
   return (
     <div className="App" style={{ minHeight: '100vh', position: 'relative' }}>
+
+      {/* ── Header ── */}
       <header className="dashboard-header">
         <div className="header-left">
           <h1>Wealth Dashboard</h1>
         </div>
         <nav className="header-nav">
-          <button 
-            className={selectedTab === 'Portfolio Overview' ? 'nav-tab active' : 'nav-tab'}
-            onClick={() => setSelectedTab('Portfolio Overview')}
-          >
-            Portfolio Overview
-          </button>
-          <button 
-            className={selectedTab === 'Performance' ? 'nav-tab active' : 'nav-tab'}
-            onClick={() => setSelectedTab('Performance')}
-          >
-            Performance
-          </button>
-          <button 
-            className={selectedTab === 'Allocation' ? 'nav-tab active' : 'nav-tab'}
-            onClick={() => setSelectedTab('Allocation')}
-          >
-            Allocation
-          </button>
-          <button 
-            className={selectedTab === 'Reports' ? 'nav-tab active' : 'nav-tab'}
-            onClick={() => setSelectedTab('Reports')}
-          >
-            Reports
-          </button>
+          {['Portfolio Overview', 'Performance', 'Allocation', 'Reports'].map(tab => (
+            <button
+              key={tab}
+              className={selectedTab === tab ? 'nav-tab active' : 'nav-tab'}
+              onClick={() => setSelectedTab(tab)}
+            >
+              {tab}
+            </button>
+          ))}
         </nav>
         <div className="header-right">
-          {keycloak && keycloak.authenticated && (
+          {keycloak?.authenticated && (
             <>
               <span className="header-username">
                 {keycloak.tokenParsed?.preferred_username || 'User'}
               </span>
-              <button
-                className="header-icon"
-                title="Logout"
-                onClick={() => keycloak.logout()}
-              >
-                ⎋
-              </button>
+              <button className="header-icon" title="Logout" onClick={() => keycloak.logout()}>⎋</button>
             </>
           )}
           <button className="header-icon" title="Notifications">□</button>
@@ -328,9 +358,30 @@ function App({ keycloak }) {
         </div>
       </header>
 
-      {portfolioData && (
-        <div className="dashboard-content">
-        {/* Key Metrics Cards */}
+      <div className="dashboard-content">
+
+        {/* ── Connected Banks ── */}
+        {banks.length > 0 && (
+          <div className="connected-banks">
+            <span className="connected-banks-label">Connected Banks</span>
+            {banks.map(bank => (
+              <div
+                key={bank.code}
+                className={`bank-chip ${bank.available ? 'available' : 'unavailable'}`}
+                style={{ borderColor: bank.available ? bank.color : '#ddd' }}
+              >
+                <span
+                  className="bank-chip-dot"
+                  style={{ background: bank.available ? bank.color : '#ccc' }}
+                />
+                {bank.name}
+                {!bank.available && <span className="bank-chip-soon">Coming soon</span>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── Key Metrics (5 cards) ── */}
         <div className="metrics-grid">
           <div className="metric-card">
             <div className="metric-label">Total Portfolio Value</div>
@@ -351,219 +402,217 @@ function App({ keycloak }) {
             <div className="metric-label">Cash</div>
             <div className="metric-value">{formatCurrency(portfolioData.cashBalance)}</div>
           </div>
+          <div className="metric-card">
+            <div className="metric-label">Fixed Deposits</div>
+            <div className="metric-value">{formatCurrency(portfolioData.fixedDepositsTotal)}</div>
+          </div>
         </div>
 
-        {/* Charts Section */}
+        {/* ── Charts ── */}
         <div className="charts-grid">
-          {/* Portfolio Performance */}
-          <div className="chart-card" style={{ position: 'relative', overflow: 'hidden' }}>
+          <div className="chart-card">
             <div className="chart-header">
               <h3>Portfolio Performance</h3>
               <div className="timeframe-selector">
-                {['1M', '3M', '6M', '1Y', 'All'].map(timeframe => (
+                {['1M', '3M', '6M', '1Y', 'All'].map(tf => (
                   <button
-                    key={timeframe}
-                    className={selectedTimeframe === timeframe ? 'timeframe-btn active' : 'timeframe-btn'}
-                    onClick={() => setSelectedTimeframe(timeframe)}
+                    key={tf}
+                    className={selectedTimeframe === tf ? 'timeframe-btn active' : 'timeframe-btn'}
+                    onClick={() => setSelectedTimeframe(tf)}
                   >
-                    {timeframe}
+                    {tf}
                   </button>
                 ))}
               </div>
             </div>
             <div className="line-chart-container">
-              {lineChartData && <Line data={lineChartData} options={lineChartOptions} />}
-            </div>
-            <div className="coming-soon-overlay">
-              <span className="coming-soon-text">Coming soon</span>
+              <Line data={lineChartDataset} options={lineChartOptions} />
             </div>
           </div>
 
-          {/* Asset Allocation */}
           <div className="chart-card">
-            <div className="chart-header">
-              <h3>Asset Allocation</h3>
-            </div>
+            <div className="chart-header"><h3>Asset Allocation</h3></div>
             <div className="pie-chart-container">
-              {portfolioData.allocationData && <Pie data={portfolioData.allocationData} options={pieChartOptions} />}
+              <Pie data={portfolioData.allocationData} options={pieChartOptions} />
             </div>
           </div>
         </div>
 
-        {/* Bottom Section */}
+        {/* ── Bottom Grid ── */}
         <div className="bottom-grid">
-          {/* Top Stock Holdings */}
+          {/* Top Stock Holdings (all banks) */}
           <div className="info-card">
             <h3>Top Stock Holdings</h3>
             <table className="holdings-table">
               <thead>
-                <tr>
-                  <th>Stock</th>
-                  <th>Value</th>
-                  <th>Change</th>
-                </tr>
+                <tr><th>Stock</th><th>Value</th><th>Change</th></tr>
               </thead>
               <tbody>
-                {portfolioData.topStocks.map((stock, index) => (
-                  <tr key={index}>
-                    <td>{stock.name}</td>
-                    <td>{formatCurrency(stock.value)}</td>
-                    <td className="change positive">▲{stock.change}%</td>
+                {portfolioData.topStocks.map((s, i) => (
+                  <tr key={i}>
+                    <td>{s.name}</td>
+                    <td>{formatCurrency(s.value)}</td>
+                    <td className="change positive">▲{portfolioData.stocksChange}%</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          {/* Cash Balance */}
+          {/* Cash Balance (all banks aggregated) */}
           <div className="info-card">
             <h3>Cash Balance</h3>
             <div className="cash-value">{formatCurrency(portfolioData.cashBalance)}</div>
             <div className="cash-details">
-              <div className="cash-section">
-                <div className="cash-label">Recent Transactions</div>
-                <div className="cash-item">04/19/2024 $10,000</div>
-              </div>
+              {portfolioData.cashTransactions.length > 0 && (
+                <div className="cash-section">
+                  <div className="cash-label">Recent Transactions</div>
+                  {portfolioData.cashTransactions.map((tx, i) => (
+                    <div key={i} className="cash-item">{tx.date} {formatCurrency(tx.amount)}</div>
+                  ))}
+                </div>
+              )}
               <div className="cash-section">
                 <div className="cash-label">Dividend Income</div>
-                <div className="cash-item">$2,500</div>
+                <div className="cash-item">{formatCurrency(portfolioData.dividendIncome)}</div>
               </div>
             </div>
           </div>
 
-          {/* Unit Trust Investments */}
+          {/* Unit Trust Investments (all banks) */}
           <div className="info-card">
             <h3>Unit Trust Investments</h3>
             <table className="holdings-table">
               <thead>
-                <tr>
-                  <th>Fund</th>
-                  <th>Value</th>
-                </tr>
+                <tr><th>Fund</th><th>Value</th></tr>
               </thead>
               <tbody>
-                {portfolioData.topUnitTrusts.map((fund, index) => (
-                  <tr key={index}>
-                    <td>{fund.name}</td>
-                    <td>{formatCurrency(fund.value)}</td>
+                {portfolioData.topUnitTrusts.map((f, i) => (
+                  <tr key={i}>
+                    <td>{f.name}</td>
+                    <td>{formatCurrency(f.value)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          {/* Recent News & Insights */}
-          <div className="info-card" style={{ position: 'relative', overflow: 'hidden' }}>
-            <h3>Recent News & Insights</h3>
-            <ul className="news-list">
-              <li>Market Update: Tech Stocks Rally</li>
-              <li>Investment Tips for 2024</li>
-              <li>Global Economic Outlook</li>
-            </ul>
-            <div className="coming-soon-overlay">
-              <span className="coming-soon-text">Coming soon</span>
-            </div>
+          {/* Fixed Deposits (UOB + OCBC) */}
+          <div className="info-card">
+            <h3>Fixed Deposits</h3>
+            <table className="holdings-table">
+              <thead>
+                <tr><th>Account</th><th>Principal</th><th>Rate</th><th>Maturity</th></tr>
+              </thead>
+              <tbody>
+                {portfolioData.allFixedDeposits.map((fd, i) => (
+                  <tr key={i}>
+                    <td>{fd.accountNickname || fd.displayAccountNumber}</td>
+                    <td>{formatCurrency(fd.principalBalance?.displayBalance || 0)}</td>
+                    <td className="change positive">{fd.interestRate}% p.a.</td>
+                    <td>{fd.maturityDate}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* CPF & SRS Section */}
+        {/* ── CPF & SRS ── */}
         <div className="cpf-srs-section">
           <h2 className="section-title">CPF & SRS</h2>
           <div className="cpf-srs-grid">
-            {/* CPF Card */}
             <div className="info-card cpf-card">
               <h3>CPF Accounts</h3>
               <table className="holdings-table">
                 <thead>
-                  <tr>
-                    <th>Account</th>
-                    <th>Balance</th>
-                    <th>Interest Rate</th>
-                  </tr>
+                  <tr><th>Account</th><th>Balance</th><th>Interest Rate</th></tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td>Ordinary Account (OA)</td>
-                    <td>{formatCurrency(45200)}</td>
-                    <td className="change positive">2.5% p.a.</td>
-                  </tr>
-                  <tr>
-                    <td>Special Account (SA)</td>
-                    <td>{formatCurrency(28750)}</td>
-                    <td className="change positive">4.0% p.a.</td>
-                  </tr>
-                  <tr>
-                    <td>Medisave Account (MA)</td>
-                    <td>{formatCurrency(19300)}</td>
-                    <td className="change positive">4.0% p.a.</td>
-                  </tr>
+                  {portfolioData.cpf.accounts.map((acct, i) => (
+                    <tr key={i}>
+                      <td>{acct.type}</td>
+                      <td>{formatCurrency(acct.balance)}</td>
+                      <td className="change positive">{acct.interestRate}% p.a.</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
               <div className="cpf-total-row">
                 <span>Total CPF</span>
-                <span className="cpf-total-value">{formatCurrency(93250)}</span>
+                <span className="cpf-total-value">{formatCurrency(portfolioData.cpf.total)}</span>
               </div>
             </div>
 
-            {/* SRS Card */}
-            <div className="info-card srs-card">
-              <h3>SRS Account</h3>
-              <div className="srs-balance-row">
-                <div className="srs-balance-block">
-                  <div className="srs-label">Total Balance</div>
-                  <div className="srs-value">{formatCurrency(38500)}</div>
+            {portfolioData.allSrsAccounts.map((srs, idx) => (
+              <div key={idx} className="info-card srs-card">
+                <h3>SRS Account <span style={{ fontSize: '13px', color: '#888', fontWeight: 400 }}>({srs.bank})</span></h3>
+                <div className="srs-balance-row">
+                  <div className="srs-balance-block">
+                    <div className="srs-label">Total Balance</div>
+                    <div className="srs-value">{formatCurrency(srs.totalBalance)}</div>
+                  </div>
+                  {srs.annualContribution !== null && (
+                    <div className="srs-balance-block">
+                      <div className="srs-label">Annual Contribution</div>
+                      <div className="srs-value">{formatCurrency(srs.annualContribution)}</div>
+                    </div>
+                  )}
+                  {srs.taxSavings !== null && (
+                    <div className="srs-balance-block">
+                      <div className="srs-label">Tax Savings (Est.)</div>
+                      <div className="srs-value positive-text">{formatCurrency(srs.taxSavings)}</div>
+                    </div>
+                  )}
                 </div>
-                <div className="srs-balance-block">
-                  <div className="srs-label">Annual Contribution</div>
-                  <div className="srs-value">{formatCurrency(15300)}</div>
-                </div>
-                <div className="srs-balance-block">
-                  <div className="srs-label">Tax Savings (Est.)</div>
-                  <div className="srs-value positive-text">{formatCurrency(3060)}</div>
-                </div>
+                {srs.investments.length > 0 && (
+                  <div className="srs-investments">
+                    <div className="srs-inv-label">SRS Investments</div>
+                    <table className="holdings-table">
+                      <thead>
+                        <tr><th>Holding</th><th>Value</th></tr>
+                      </thead>
+                      <tbody>
+                        {srs.investments.map((inv, i) => (
+                          <tr key={i}>
+                            <td>{inv.holding}</td>
+                            <td>{formatCurrency(inv.value)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
-              <div className="srs-investments">
-                <div className="srs-inv-label">SRS Investments</div>
-                <table className="holdings-table">
-                  <thead>
-                    <tr>
-                      <th>Holding</th>
-                      <th>Value</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>STI ETF</td>
-                      <td>{formatCurrency(18200)}</td>
-                    </tr>
-                    <tr>
-                      <td>Cash (SRS)</td>
-                      <td>{formatCurrency(20300)}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
-        </div>
-      )}
 
-      {/* Floating Chat Button */}
-      <button
-        className="chat-fab"
-        onClick={() => setChatOpen(o => !o)}
-        title="Ask your portfolio assistant"
-      >
+        {/* ── News ── */}
+        {portfolioData.news.length > 0 && (
+          <div className="cpf-srs-section">
+            <h2 className="section-title">Recent News & Insights</h2>
+            <div className="info-card">
+              <ul className="news-list">
+                {portfolioData.news.map((item, i) => (
+                  <li key={i}>{item.title}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      {/* ── Chat FAB ── */}
+      <button className="chat-fab" onClick={() => setChatOpen(o => !o)} title="Ask your portfolio assistant">
         {chatOpen ? '✕' : '💬'}
       </button>
 
-      {/* Chat Drawer */}
+      {/* ── Chat Drawer ── */}
       {chatOpen && (
         <div className="chat-drawer">
-          <div className="chat-drawer-header">
-            <span>Portfolio Assistant</span>
-          </div>
+          <div className="chat-drawer-header"><span>Portfolio Assistant</span></div>
           <div className="chat-messages">
             {chatMessages.length === 0 && (
               <div className="chat-empty">
@@ -571,15 +620,11 @@ function App({ keycloak }) {
               </div>
             )}
             {chatMessages.map((msg, i) => (
-              <div key={i} className={`chat-bubble chat-bubble--${msg.role}`}>
-                {msg.text}
-              </div>
+              <div key={i} className={`chat-bubble chat-bubble--${msg.role}`}>{msg.text}</div>
             ))}
             {chatLoading && (
               <div className="chat-bubble chat-bubble--assistant chat-thinking">
-                <span className="chat-dot"></span>
-                <span className="chat-dot"></span>
-                <span className="chat-dot"></span>
+                <span className="chat-dot" /><span className="chat-dot" /><span className="chat-dot" />
               </div>
             )}
             <div ref={chatEndRef} />
@@ -593,11 +638,7 @@ function App({ keycloak }) {
               placeholder="Ask about your portfolio..."
               disabled={chatLoading}
             />
-            <button
-              className="chat-send"
-              onClick={sendMessage}
-              disabled={chatLoading || !chatInput.trim()}
-            >
+            <button className="chat-send" onClick={sendMessage} disabled={chatLoading || !chatInput.trim()}>
               Send
             </button>
           </div>
