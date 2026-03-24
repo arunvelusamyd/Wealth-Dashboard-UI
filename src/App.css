@@ -1246,11 +1246,63 @@
   display: flex;
   gap: 12px;
   margin-bottom: 20px;
+  align-items: flex-start;
+}
+
+.watchlist-search-wrap {
+  position: relative;
+  flex: 1;
+  max-width: 360px;
+}
+
+.watchlist-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #E0E0E0;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  z-index: 100;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.watchlist-suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.watchlist-suggestion-item:hover {
+  background: #F5F7FF;
+}
+
+.watchlist-suggestion-desc {
+  flex: 1;
+  font-size: 13px;
+  color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.watchlist-suggestion-type {
+  font-size: 11px;
+  color: #9CA3AF;
+  white-space: nowrap;
 }
 
 .watchlist-input {
-  flex: 1;
-  max-width: 360px;
+  width: 100%;
+  max-width: unset;
   padding: 10px 16px;
   font-size: 14px;
   border: 1px solid #E0E0E0;
