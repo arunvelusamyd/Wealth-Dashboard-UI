@@ -3,13 +3,16 @@
   "version": "1.0.0",
   "description": "Investment Wealth Dashboard with Asset Allocation Visualization",
   "main": "index.js",
+  "homepage": "https://arunvelusamyd.github.io/Wealth-Dashboard-UI",
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "proxy": "node proxy-server.js",
-    "dev": "concurrently \"npm run proxy\" \"npm start\""
+    "dev": "concurrently \"npm run proxy\" \"npm start\"",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build"
   },
   "dependencies": {
     "chart.js": "^4.4.0",
@@ -36,5 +39,8 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "gh-pages": "^6.3.0"
   }
 }
