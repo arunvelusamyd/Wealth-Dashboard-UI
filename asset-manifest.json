@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/Wealth-Dashboard-UI/static/css/main.9af57942.css",
+    "main.js": "/Wealth-Dashboard-UI/static/js/main.cf42db0e.js",
+    "index.html": "/Wealth-Dashboard-UI/index.html",
+    "main.9af57942.css.map": "/Wealth-Dashboard-UI/static/css/main.9af57942.css.map",
+    "main.cf42db0e.js.map": "/Wealth-Dashboard-UI/static/js/main.cf42db0e.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.9af57942.css",
+    "static/js/main.cf42db0e.js"
+  ]
+}
