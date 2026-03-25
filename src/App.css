@@ -5,6 +5,11 @@
   box-sizing: border-box;
 }
 
+/* Prevent horizontal page scroll without breaking position:sticky on the header */
+html, body {
+  overflow-x: hidden;
+}
+
 .App {
   min-height: 100vh;
   background: #F5F5F5;
@@ -191,6 +196,11 @@
   align-items: center;
   justify-content: space-between;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
 }
 
 .header-left h1 {
@@ -251,9 +261,9 @@
   background: rgba(255, 255, 255, 0.1);
 }
 
-/* Main Content */
+/* Main Content — top padding offsets the fixed header */
 .dashboard-content {
-  padding: 30px 40px;
+  padding: 94px 40px 30px; /* 64px header + 30px gap */
   max-width: 1400px;
   margin: 0 auto;
 }
@@ -274,6 +284,83 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   white-space: nowrap;
+}
+
+/* Mobile bank multi-select — hidden on desktop */
+.connected-banks--mobile { display: none; }
+
+.bank-multiselect-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  color: #1E3A5F;
+  background: white;
+  border: 1.5px solid #1E3A5F;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.bank-multiselect-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 8px;
+}
+
+.bank-multiselect-arrow {
+  font-size: 16px;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+.bank-multiselect-arrow.open { transform: rotate(180deg); }
+
+.bank-multiselect-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  background: white;
+  border: 1px solid #E0E0E0;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+  z-index: 200;
+  padding: 6px 0;
+}
+
+.bank-multiselect-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  font-size: 14px;
+  color: #1E3A5F;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.bank-multiselect-option:hover:not(.disabled) { background: #F5F7FF; }
+.bank-multiselect-option.disabled { color: #aaa; cursor: default; }
+
+.bank-multiselect-option input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+  accent-color: #1E3A5F;
+}
+
+.bank-multiselect-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .bank-chip {
@@ -686,74 +773,135 @@
   font-weight: 500;
 }
 
-/* Responsive Design */
+/* ============================================================
+   Responsive Design
+   ============================================================ */
+
+/* Tablet landscape */
 @media (max-width: 1400px) {
-  .metrics-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
+  .metrics-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
 @media (max-width: 1200px) {
-  .metrics-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .bottom-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+  .bottom-grid  { grid-template-columns: repeat(2, 1fr); }
 }
 
+/* Tablet portrait */
 @media (max-width: 768px) {
   .dashboard-header {
     flex-direction: column;
-    gap: 20px;
-    padding: 20px;
+    gap: 12px;
+    padding: 16px 20px;
   }
 
+  /* Horizontally scrollable nav — no wrapping, no overflow */
   .header-nav {
-    flex-wrap: wrap;
-    justify-content: center;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    justify-content: flex-start;
+    padding-bottom: 2px;
   }
-
-  .dashboard-content {
-    padding: 20px;
-  }
-
-  .metrics-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .charts-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .bottom-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .line-chart-container,
-  .pie-chart-container {
-    height: 250px;
-  }
-}
-
-@media (max-width: 480px) {
-  .header-left h1 {
-    font-size: 20px;
-  }
+  .header-nav::-webkit-scrollbar { display: none; }
 
   .nav-tab {
-    padding: 8px 12px;
-    font-size: 12px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding: 8px 14px;
+    font-size: 13px;
   }
 
-  .metric-value {
-    font-size: 24px;
+  .header-right { justify-content: center; }
+
+  .dashboard-content { padding: 156px 16px 16px; }
+
+  /* Cards — reduce padding and allow horizontal scroll for tables */
+  .info-card { padding: 16px; overflow-x: auto; }
+  .metric-card { padding: 16px 20px; }
+
+  /* All grids collapse */
+  .metrics-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .charts-grid  { grid-template-columns: 1fr; }
+  .bottom-grid  { grid-template-columns: 1fr; }
+  .cpf-srs-grid { grid-template-columns: 1fr; }
+
+  /* Chart heights */
+  .line-chart-container,
+  .pie-chart-container { height: 220px; }
+
+  /* Chart header stacks: title above timeframe buttons */
+  .chart-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+
+  /* Tables fill the card width — no horizontal scroll */
+  .holdings-table { min-width: unset; width: 100%; }
+  .info-card { overflow-x: visible; }
+
+  /* Reduce cell padding and font on mobile */
+  .holdings-table th { font-size: 11px; padding: 8px 4px 8px 0; }
+  .holdings-table td { font-size: 13px; padding: 10px 4px 10px 0; }
+
+  /* Fixed Deposits: hide Maturity column to fit in 3 cols */
+  .fd-col-maturity { display: none; }
+
+  /* SRS balance blocks wrap on narrow */
+  .srs-balance-row { flex-wrap: wrap; gap: 16px; }
+
+  /* Watchlist add bar stacks vertically */
+  .watchlist-container { max-width: 100%; }
+  .watchlist-add-bar { flex-direction: column; }
+  .watchlist-search-wrap { max-width: 100%; width: 100%; }
+  .watchlist-add-btn { width: 100%; }
+
+  /* Watchlist table: hide "Added" date column to fit Symbol + Name + Action */
+  .watchlist-table th:nth-child(3),
+  .watchlist-table td:nth-child(3) { display: none; }
+
+  /* Swap chips → dropdown on mobile */
+  .connected-banks--desktop { display: none; }
+  .connected-banks--mobile {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 16px;
+    position: relative;
   }
 
-  .cash-value {
-    font-size: 28px;
-  }
+  /* Clip chart canvas so it never bleeds outside its card */
+  .chart-card { overflow: hidden; }
+  .line-chart-container canvas,
+  .pie-chart-container canvas { max-width: 100%; }
+
+  /* Pie chart legend at bottom needs more height */
+  .pie-chart-container { height: 280px; }
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+  .dashboard-header { padding: 12px 16px; gap: 10px; }
+
+  .header-left h1 { font-size: 18px; }
+
+  .nav-tab { padding: 8px 10px; font-size: 12px; }
+
+  .dashboard-content { padding: 140px 12px 12px; }
+
+  /* Single column metrics on small phones */
+  .metrics-grid { grid-template-columns: 1fr; gap: 10px; }
+
+  .metric-card { padding: 14px 16px; }
+  .metric-value { font-size: 22px; }
+  .metric-label { font-size: 13px; }
+
+  .cash-value { font-size: 26px; }
+
+  .info-card { padding: 12px; }
+  .info-card h3 { font-size: 14px; margin-bottom: 12px; }
+
+  .line-chart-container,
+  .pie-chart-container { height: 200px; }
+
+  .section-title { font-size: 16px; }
 }
 
 /* ============================================================
@@ -1211,9 +1359,69 @@
 .sub-cancel-btn:hover { background: #f5f5f5; }
 
 @media (max-width: 768px) {
-  .sub-summary-grid { grid-template-columns: repeat(2, 1fr); }
+  .sub-container { max-width: 100%; }
+  .sub-summary-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
   .sub-form { flex-direction: column; }
-  .sub-input, .sub-input--narrow, .sub-select { flex: none; width: 100%; }
+  .sub-input, .sub-input--narrow,
+  .sub-select, .sub-select--narrow { flex: none; width: 100%; }
+  .sub-add-btn { width: 100%; }
+
+  /* Subscriptions table — card layout, no horizontal scroll */
+  .sub-table { min-width: unset; width: 100%; }
+  .sub-table thead { display: none; }
+
+  .sub-table tbody tr:not(.sub-edit-row) {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto auto;
+    padding: 14px 0;
+    border-bottom: 1px solid #F0F0F0;
+    gap: 4px 12px;
+  }
+  .sub-table tbody tr:not(.sub-edit-row) td {
+    display: block;
+    border: none;
+    padding: 0;
+    font-size: 13px;
+  }
+  /* Name — row 1 col 1 */
+  .sub-table tbody tr:not(.sub-edit-row) td:nth-child(1) {
+    grid-column: 1; grid-row: 1;
+    font-size: 14px; font-weight: 600; color: #1E3A5F;
+  }
+  /* Category — hide */
+  .sub-table tbody tr:not(.sub-edit-row) td:nth-child(2) { display: none; }
+  /* Amount — row 1 col 2 */
+  .sub-table tbody tr:not(.sub-edit-row) td:nth-child(3) {
+    grid-column: 2; grid-row: 1;
+    font-weight: 600; text-align: right;
+  }
+  /* Frequency — row 2 col 1 */
+  .sub-table tbody tr:not(.sub-edit-row) td:nth-child(4) {
+    grid-column: 1; grid-row: 2;
+  }
+  /* Billing day — hide */
+  .sub-table tbody tr:not(.sub-edit-row) td:nth-child(5) { display: none; }
+  /* Status — row 2 col 2 */
+  .sub-table tbody tr:not(.sub-edit-row) td:nth-child(6) {
+    grid-column: 2; grid-row: 2;
+    text-align: right;
+  }
+  /* Actions — row 3, full width */
+  .sub-table tbody tr:not(.sub-edit-row) td:nth-child(7) {
+    grid-column: 1 / -1; grid-row: 3;
+    padding-top: 6px;
+  }
+
+  /* Inline edit row stays as normal table row but wraps */
+  .sub-edit-row { display: table-row; }
+  .sub-edit-row td { display: table-cell; padding: 8px 4px; }
+}
+
+@media (max-width: 480px) {
+  .sub-summary-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .sub-summary-card { padding: 14px 16px; }
+  .sub-summary-value { font-size: 18px; }
 }
 
 /* Mock data banner */
@@ -1423,17 +1631,31 @@
   cursor: default;
 }
 
+@media (max-width: 768px) {
+  .chat-drawer {
+    right: 12px;
+    left: 12px;
+    width: auto;
+  }
+  .chat-fab {
+    right: 20px;
+    bottom: 20px;
+  }
+}
+
 @media (max-width: 480px) {
   .chat-drawer {
     right: 0;
     left: 0;
-    bottom: 80px;
+    bottom: 72px;
     width: 100%;
     border-radius: 12px 12px 0 0;
   }
-
   .chat-fab {
-    right: 20px;
-    bottom: 20px;
+    right: 16px;
+    bottom: 16px;
+    width: 50px;
+    height: 50px;
+    font-size: 20px;
   }
 }
