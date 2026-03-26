@@ -217,14 +217,14 @@ const dbsSrsUnitTrusts = {
     {
       assetClass: 'BO',
       holdings: [
-        { productName: 'SSB GX24100H 341001', marketVal: { currency: 'SGD', value: '1500.0' }, totalCost: { currency: '1500.0', value: 'SGD' } },
+        { productName: 'SSB PL83749X 627384', marketVal: { currency: 'SGD', value: '1500.0' }, totalCost: { currency: '1500.0', value: 'SGD' } },
       ],
     },
     {
       assetClass: 'EQ',
       holdings: [
-        { productName: 'TB BS26101E 260721', marketVal: { currency: 'SGD', value: '1389.79' }, totalCost: { currency: '1358.24', value: 'SGD' } },
-        { productName: 'TB BS26102F 260804', marketVal: { currency: 'SGD', value: '1419.58' }, totalCost: { currency: '1383.34', value: 'SGD' } },
+        { productName: 'TB NR59214M 813047', marketVal: { currency: 'SGD', value: '1389.79' }, totalCost: { currency: '1358.24', value: 'SGD' } },
+        { productName: 'TB KT71638D 492715', marketVal: { currency: 'SGD', value: '1419.58' }, totalCost: { currency: '1383.34', value: 'SGD' } },
       ],
     },
     {
@@ -315,7 +315,76 @@ export const mockSubscriptions = [
   { id: 10, name: 'NTUC Income Shield', amount:  600.00, category: 'Insurance',       frequency: 'Yearly',  billingDate: '12', status: 'Active', addedAt: '01/01/2026' },
 ];
 
-// Mock ticker search results — keyed by lowercase query prefix for DEV_MODE typeahead
+// ── Mock stock prices for DEV_MODE watchlist ──────────────────────────────────
+
+const MOCK_PRICE_TABLE = {
+  AAPL:  { currentPrice: 213.49, change:  1.23, percentChange:  0.58 },
+  AMZN:  { currentPrice: 194.50, change:  3.12, percentChange:  1.63 },
+  GOOGL: { currentPrice: 162.23, change: -0.87, percentChange: -0.53 },
+  GOOG:  { currentPrice: 161.80, change: -0.90, percentChange: -0.55 },
+  MSFT:  { currentPrice: 378.15, change:  2.54, percentChange:  0.68 },
+  META:  { currentPrice: 502.30, change: -4.50, percentChange: -0.89 },
+  NVDA:  { currentPrice: 821.40, change: 15.20, percentChange:  1.88 },
+  TSLA:  { currentPrice: 248.42, change: -3.21, percentChange: -1.27 },
+  NFLX:  { currentPrice: 628.90, change:  8.75, percentChange:  1.41 },
+  AMD:   { currentPrice: 168.30, change: -2.10, percentChange: -1.23 },
+  INTC:  { currentPrice:  42.15, change:  0.35, percentChange:  0.84 },
+  BABA:  { currentPrice:  85.60, change:  1.10, percentChange:  1.30 },
+  TSM:   { currentPrice: 142.75, change:  2.30, percentChange:  1.64 },
+  SBUX:  { currentPrice:  79.40, change: -0.60, percentChange: -0.75 },
+  DIS:   { currentPrice: 112.80, change:  1.45, percentChange:  1.30 },
+  JPM:   { currentPrice: 198.60, change:  0.90, percentChange:  0.46 },
+  BAC:   { currentPrice:  38.25, change: -0.15, percentChange: -0.39 },
+  V:     { currentPrice: 276.40, change:  1.80, percentChange:  0.66 },
+  MA:    { currentPrice: 462.10, change:  3.20, percentChange:  0.70 },
+  PFE:   { currentPrice:  27.85, change: -0.30, percentChange: -1.07 },
+};
+
+export const getMockPrice = (symbol) =>
+  MOCK_PRICE_TABLE[symbol] || {
+    currentPrice: +(50 + Math.random() * 450).toFixed(2),
+    change: +((Math.random() - 0.5) * 5).toFixed(2),
+    percentChange: +((Math.random() - 0.5) * 3).toFixed(2),
+  };
+
+// ── Mock stock fundamentals for DEV_MODE ─────────────────────────────────────
+
+const MOCK_FUNDAMENTALS = {
+  AAPL:  { peRatio: 28.5,  pbRatio: 45.2, dividendYield: 0.52, netProfitMargin: 25.3, earningsToBookValue: 1.72, pegRatio: 2.1,  currentRatio: 1.07, workingCapitalToDebt: null, netCurrentAssetToDebt: null, roe: 155.0, roce: 48.2 },
+  MSFT:  { peRatio: 33.1,  pbRatio: 12.4, dividendYield: 0.72, netProfitMargin: 35.7, earningsToBookValue: 0.95, pegRatio: 2.4,  currentRatio: 1.77, workingCapitalToDebt: null, netCurrentAssetToDebt: null, roe:  38.5, roce: 28.7 },
+  GOOGL: { peRatio: 22.8,  pbRatio:  6.1, dividendYield: 0.46, netProfitMargin: 23.9, earningsToBookValue: 0.52, pegRatio: 1.6,  currentRatio: 2.10, workingCapitalToDebt: null, netCurrentAssetToDebt: null, roe:  26.8, roce: 22.1 },
+  AMZN:  { peRatio: 42.3,  pbRatio:  8.9, dividendYield: null, netProfitMargin:  5.3, earningsToBookValue: 0.29, pegRatio: 1.9,  currentRatio: 1.05, workingCapitalToDebt: null, netCurrentAssetToDebt: null, roe:  21.4, roce: 13.5 },
+  TSLA:  { peRatio: 62.1,  pbRatio: 11.3, dividendYield: null, netProfitMargin: 10.8, earningsToBookValue: 0.48, pegRatio: 3.2,  currentRatio: 1.84, workingCapitalToDebt: null, netCurrentAssetToDebt: null, roe:  18.6, roce: 14.2 },
+  NVDA:  { peRatio: 55.4,  pbRatio: 30.2, dividendYield: 0.03, netProfitMargin: 48.9, earningsToBookValue: 2.11, pegRatio: 1.4,  currentRatio: 4.17, workingCapitalToDebt: null, netCurrentAssetToDebt: null, roe:  91.5, roce: 62.8 },
+  META:  { peRatio: 24.7,  pbRatio:  7.6, dividendYield: 0.40, netProfitMargin: 34.1, earningsToBookValue: 0.74, pegRatio: 1.3,  currentRatio: 2.67, workingCapitalToDebt: null, netCurrentAssetToDebt: null, roe:  33.2, roce: 27.9 },
+  NFLX:  { peRatio: 38.9,  pbRatio: 15.8, dividendYield: null, netProfitMargin: 16.4, earningsToBookValue: 0.88, pegRatio: 2.0,  currentRatio: 1.32, workingCapitalToDebt: null, netCurrentAssetToDebt: null, roe:  41.3, roce: 30.6 },
+  AMD:   { peRatio: 118.6, pbRatio:  3.9, dividendYield: null, netProfitMargin:  5.8, earningsToBookValue: 0.14, pegRatio: 4.2,  currentRatio: 2.54, workingCapitalToDebt: null, netCurrentAssetToDebt: null, roe:   3.3, roce:  2.9 },
+  JPM:   { peRatio: 12.1,  pbRatio:  1.9, dividendYield: 2.20, netProfitMargin: 26.8, earningsToBookValue: 0.18, pegRatio: 1.1,  currentRatio: null, workingCapitalToDebt: null, netCurrentAssetToDebt: null, roe:  15.4, roce: null },
+  DIS:   { peRatio: 21.4,  pbRatio:  1.8, dividendYield: 0.78, netProfitMargin:  6.9, earningsToBookValue: 0.11, pegRatio: 1.8,  currentRatio: 0.95, workingCapitalToDebt: null, netCurrentAssetToDebt: null, roe:   5.3, roce:  4.1 },
+};
+
+export const getMockFundamentals = (symbol) => {
+  const data = MOCK_FUNDAMENTALS[symbol.toUpperCase()];
+  if (data) return { symbol: symbol.toUpperCase(), ...data };
+  // Generic fallback for unknown symbols
+  return {
+    symbol: symbol.toUpperCase(),
+    peRatio: +(10 + Math.random() * 40).toFixed(1),
+    pbRatio: +(0.8 + Math.random() * 8).toFixed(2),
+    dividendYield: Math.random() > 0.4 ? +(Math.random() * 4).toFixed(2) : null,
+    netProfitMargin: +(-5 + Math.random() * 35).toFixed(1),
+    earningsToBookValue: +(Math.random() * 2).toFixed(2),
+    pegRatio: +(0.5 + Math.random() * 3.5).toFixed(2),
+    currentRatio: +(0.5 + Math.random() * 3).toFixed(2),
+    workingCapitalToDebt: null,
+    netCurrentAssetToDebt: null,
+    roe: +(-5 + Math.random() * 50).toFixed(1),
+    roce: +(Math.random() * 35).toFixed(1),
+  };
+};
+
+// ── Mock ticker typeahead ─────────────────────────────────────────────────────
+
 export const mockTickerSearch = (query) => {
   const q = query.toLowerCase();
   const pool = [
