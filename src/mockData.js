@@ -314,3 +314,33 @@ export const mockSubscriptions = [
   { id: 9,  name: 'Car Loan EMI',       amount:  850.00, category: 'Loan / EMI',      frequency: 'Monthly', billingDate: '25', status: 'Active', addedAt: '01/01/2026' },
   { id: 10, name: 'NTUC Income Shield', amount:  600.00, category: 'Insurance',       frequency: 'Yearly',  billingDate: '12', status: 'Active', addedAt: '01/01/2026' },
 ];
+
+// Mock ticker search results — keyed by lowercase query prefix for DEV_MODE typeahead
+export const mockTickerSearch = (query) => {
+  const q = query.toLowerCase();
+  const pool = [
+    { symbol: 'AAPL',  description: 'Apple Inc',                   type: 'Common Stock' },
+    { symbol: 'AMZN',  description: 'Amazon.com Inc',              type: 'Common Stock' },
+    { symbol: 'GOOGL', description: 'Alphabet Inc Class A',        type: 'Common Stock' },
+    { symbol: 'GOOG',  description: 'Alphabet Inc Class C',        type: 'Common Stock' },
+    { symbol: 'MSFT',  description: 'Microsoft Corp',              type: 'Common Stock' },
+    { symbol: 'META',  description: 'Meta Platforms Inc',          type: 'Common Stock' },
+    { symbol: 'NVDA',  description: 'NVIDIA Corp',                 type: 'Common Stock' },
+    { symbol: 'TSLA',  description: 'Tesla Inc',                   type: 'Common Stock' },
+    { symbol: 'NFLX',  description: 'Netflix Inc',                 type: 'Common Stock' },
+    { symbol: 'AMD',   description: 'Advanced Micro Devices Inc',  type: 'Common Stock' },
+    { symbol: 'INTC',  description: 'Intel Corp',                  type: 'Common Stock' },
+    { symbol: 'BABA',  description: 'Alibaba Group Holding Ltd',   type: 'Common Stock' },
+    { symbol: 'TSM',   description: 'Taiwan Semiconductor Mfg',   type: 'Common Stock' },
+    { symbol: 'SBUX',  description: 'Starbucks Corp',              type: 'Common Stock' },
+    { symbol: 'DIS',   description: 'Walt Disney Co',              type: 'Common Stock' },
+    { symbol: 'JPM',   description: 'JPMorgan Chase & Co',         type: 'Common Stock' },
+    { symbol: 'BAC',   description: 'Bank of America Corp',        type: 'Common Stock' },
+    { symbol: 'V',     description: 'Visa Inc',                    type: 'Common Stock' },
+    { symbol: 'MA',    description: 'Mastercard Inc',              type: 'Common Stock' },
+    { symbol: 'PFE',   description: 'Pfizer Inc',                  type: 'Common Stock' },
+  ];
+  return pool
+    .filter(r => r.symbol.toLowerCase().startsWith(q) || r.description.toLowerCase().includes(q))
+    .slice(0, 8);
+};

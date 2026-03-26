@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Filler } from 'chart.js';
 import { Pie, Line } from 'react-chartjs-2';
-import { mockBanks, mockBankPortfolios, mockSubscriptions } from './mockData';
+import { mockBanks, mockBankPortfolios, mockSubscriptions, mockTickerSearch } from './mockData';
 import { DEV_MODE } from './devConfig';
 import './App.css';
 
@@ -37,6 +37,9 @@ function App({ keycloak }) {
     catch { return []; }
   });
   const [watchlistInput, setWatchlistInput] = useState('');
+  const [tickerSuggestions, setTickerSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchDebounceRef = useRef(null);
 
   // ── Subscriptions ─────────────────────────────────────────────────────────
   const [subscriptions, setSubscriptions] = useState(() => {
@@ -118,6 +121,37 @@ function App({ keycloak }) {
       return [...prev, { symbol: sym, name: name || sym, addedAt: new Date().toLocaleDateString('en-SG') }];
     });
     setWatchlistInput('');
+    setTickerSuggestions([]);
+    setShowSuggestions(false);
+  }, []);
+
+  const handleWatchlistInputChange = useCallback((value) => {
+    setWatchlistInput(value);
+    clearTimeout(searchDebounceRef.current);
+    if (value.trim().length < 1) {
+      setTickerSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    searchDebounceRef.current = setTimeout(async () => {
+      if (DEV_MODE) {
+        const results = mockTickerSearch(value.trim());
+        setTickerSuggestions(results);
+        setShowSuggestions(results.length > 0);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/stocks/search?q=${encodeURIComponent(value.trim())}`);
+        if (res.ok) {
+          const data = await res.json();
+          setTickerSuggestions(data);
+          setShowSuggestions(data.length > 0);
+        }
+      } catch {
+        setTickerSuggestions([]);
+        setShowSuggestions(false);
+      }
+    }, 300);
   }, []);
 
   const removeFromWatchlist = useCallback((symbol) => {
@@ -494,13 +528,33 @@ function App({ keycloak }) {
 
             {/* Add stock form */}
             <div className="watchlist-add-bar">
-              <input
-                className="watchlist-input"
-                value={watchlistInput}
-                onChange={e => setWatchlistInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && addToWatchlist(watchlistInput, '')}
-                placeholder="Enter stock symbol (e.g. AAPL, TSLA)"
-              />
+              <div className="watchlist-search-wrap">
+                <input
+                  className="watchlist-input"
+                  value={watchlistInput}
+                  onChange={e => handleWatchlistInputChange(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addToWatchlist(watchlistInput, '')}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                  onFocus={() => tickerSuggestions.length > 0 && setShowSuggestions(true)}
+                  placeholder="Search ticker symbol (e.g. AAPL, TSLA)"
+                  autoComplete="off"
+                />
+                {showSuggestions && (
+                  <ul className="watchlist-suggestions">
+                    {tickerSuggestions.map(r => (
+                      <li
+                        key={r.symbol}
+                        className="watchlist-suggestion-item"
+                        onMouseDown={() => addToWatchlist(r.symbol, r.description)}
+                      >
+                        <span className="watchlist-symbol">{r.symbol}</span>
+                        <span className="watchlist-suggestion-desc">{r.description}</span>
+                        <span className="watchlist-suggestion-type">{r.type}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
               <button
                 className="watchlist-add-btn"
                 onClick={() => addToWatchlist(watchlistInput, '')}
