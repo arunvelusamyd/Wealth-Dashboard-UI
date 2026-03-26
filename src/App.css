@@ -854,9 +854,8 @@ html, body {
   .watchlist-search-wrap { max-width: 100%; width: 100%; }
   .watchlist-add-btn { width: 100%; }
 
-  /* Watchlist table: hide "Added" date column to fit Symbol + Name + Action */
-  .watchlist-table th:nth-child(3),
-  .watchlist-table td:nth-child(3) { display: none; }
+  /* Watchlist table: hide Name column on mobile — keep Symbol, Price, Change, Action */
+  .wl-col-name { display: none; }
 
   /* Swap chips → dropdown on mobile */
   .connected-banks--desktop { display: none; }
@@ -1629,6 +1628,52 @@ html, body {
   border-color: #50C878;
   color: #50C878;
   cursor: default;
+}
+
+/* ── Watchlist price columns ───────────────────────────────────────────── */
+.wl-price-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.wl-price {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1E3A5F;
+  font-variant-numeric: tabular-nums;
+}
+
+.wl-change {
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.wl-change--up   { color: #27AE60; }
+.wl-change--down { color: #E74C3C; }
+
+.wl-loading {
+  color: #CCC;
+  font-size: 16px;
+}
+
+/* Pulsing green dot shown when a live WebSocket price arrived */
+.wl-live-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #27AE60;
+  flex-shrink: 0;
+  animation: wl-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes wl-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.7); }
 }
 
 @media (max-width: 768px) {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { DEV_MODE } from '../devConfig';
-import { mockTickerSearch } from '../mockData';
+import { Client } from '@stomp/stompjs';
+import { DEV_MODE, WS_URL } from '../devConfig';
+import { mockTickerSearch, getMockPrice } from '../mockData';
 import { formatCurrency } from '../utils/formatCurrency';
 
 export default function WatchlistTab({ allStocks }) {
@@ -11,12 +12,121 @@ export default function WatchlistTab({ allStocks }) {
   const [watchlistInput, setWatchlistInput] = useState('');
   const [tickerSuggestions, setTickerSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [prices, setPrices] = useState({});
+
   const searchDebounceRef = useRef(null);
+  const stompClientRef = useRef(null);
+  const stompSubsRef = useRef({});    // { [symbol]: STOMP subscription }
+  const priceFetchedRef = useRef(new Set()); // symbols already fetched
+  const watchlistRef = useRef(watchlist);
 
   useEffect(() => {
+    watchlistRef.current = watchlist;
     localStorage.setItem('wealthWatchlist', JSON.stringify(watchlist));
   }, [watchlist]);
 
+  // ── Fetch initial price for one symbol ──────────────────────────────────────
+  const fetchPrice = useCallback(async (symbol) => {
+    if (priceFetchedRef.current.has(symbol)) return;
+    priceFetchedRef.current.add(symbol);
+    if (DEV_MODE) {
+      const mock = getMockPrice(symbol);
+      setPrices(prev => ({ ...prev, [symbol]: { ...mock, live: false } }));
+      return;
+    }
+    try {
+      const res = await fetch(`/api/stocks/${encodeURIComponent(symbol)}/price`);
+      if (res.ok) {
+        const data = await res.json();
+        setPrices(prev => ({ ...prev, [symbol]: { ...data, live: false } }));
+      }
+    } catch { /* ignore network errors */ }
+  }, []);
+
+  // ── Subscribe one symbol on the STOMP connection ─────────────────────────────
+  const stompSubscribeSymbol = useCallback((client, symbol) => {
+    if (stompSubsRef.current[symbol]) return;
+    const sub = client.subscribe(`/topic/prices/${symbol}`, (msg) => {
+      const data = JSON.parse(msg.body);
+      setPrices(prev => ({
+        ...prev,
+        [symbol]: { ...prev[symbol], currentPrice: data.price, live: true },
+      }));
+    });
+    stompSubsRef.current[symbol] = sub;
+    client.publish({
+      destination: '/app/stocks/subscribe',
+      body: JSON.stringify({ symbols: [symbol] }),
+    });
+  }, []);
+
+  // ── STOMP connection — live mode only, runs once on mount ───────────────────
+  useEffect(() => {
+    if (DEV_MODE) return;
+    const client = new Client({
+      webSocketFactory: () => new WebSocket(WS_URL),
+      reconnectDelay: 5000,
+      onConnect: () => {
+        watchlistRef.current.forEach(item => stompSubscribeSymbol(client, item.symbol));
+      },
+    });
+    stompClientRef.current = client;
+    client.activate();
+    return () => {
+      stompSubsRef.current = {};
+      stompClientRef.current = null;
+      client.deactivate();
+    };
+  }, [stompSubscribeSymbol]);
+
+  // ── DEV_MODE: simulate live ticks every 3 s ─────────────────────────────────
+  useEffect(() => {
+    if (!DEV_MODE || watchlist.length === 0) return;
+    const interval = setInterval(() => {
+      setPrices(prev => {
+        const updated = { ...prev };
+        watchlistRef.current.forEach(item => {
+          const p = updated[item.symbol];
+          if (p?.currentPrice) {
+            const delta = p.currentPrice * (Math.random() * 0.004 - 0.002);
+            updated[item.symbol] = {
+              ...p,
+              currentPrice: +(p.currentPrice + delta).toFixed(2),
+              live: true,
+            };
+          }
+        });
+        return updated;
+      });
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [watchlist]);
+
+  // ── Sync prices + STOMP subscriptions when watchlist changes ────────────────
+  useEffect(() => {
+    watchlist.forEach(item => {
+      fetchPrice(item.symbol);
+      if (!DEV_MODE && stompClientRef.current?.connected && !stompSubsRef.current[item.symbol]) {
+        stompSubscribeSymbol(stompClientRef.current, item.symbol);
+      }
+    });
+    // Unsubscribe symbols no longer in watchlist
+    if (!DEV_MODE) {
+      const current = new Set(watchlist.map(w => w.symbol));
+      Object.keys(stompSubsRef.current).forEach(sym => {
+        if (!current.has(sym)) {
+          stompSubsRef.current[sym]?.unsubscribe();
+          delete stompSubsRef.current[sym];
+          stompClientRef.current?.publish({
+            destination: '/app/stocks/unsubscribe',
+            body: JSON.stringify({ symbols: [sym] }),
+          });
+        }
+      });
+    }
+  }, [watchlist, fetchPrice, stompSubscribeSymbol]);
+
+  // ── Watchlist mutations ──────────────────────────────────────────────────────
   const addToWatchlist = useCallback((symbol, name) => {
     const sym = symbol.trim().toUpperCase();
     if (!sym) return;
@@ -31,8 +141,11 @@ export default function WatchlistTab({ allStocks }) {
 
   const removeFromWatchlist = useCallback((symbol) => {
     setWatchlist(prev => prev.filter(w => w.symbol !== symbol));
+    setPrices(prev => { const n = { ...prev }; delete n[symbol]; return n; });
+    priceFetchedRef.current.delete(symbol);
   }, []);
 
+  // ── Typeahead ────────────────────────────────────────────────────────────────
   const handleWatchlistInputChange = useCallback((value) => {
     setWatchlistInput(value);
     clearTimeout(searchDebounceRef.current);
@@ -62,6 +175,16 @@ export default function WatchlistTab({ allStocks }) {
     }, 300);
   }, []);
 
+  // ── Formatters ───────────────────────────────────────────────────────────────
+  const formatPrice = (p) => (p != null ? `$${p.toFixed(2)}` : '—');
+
+  const formatChange = (c, pc) => {
+    if (c == null || pc == null) return null;
+    const sign = c >= 0 ? '+' : '';
+    return { text: `${sign}${c.toFixed(2)} (${sign}${pc.toFixed(2)}%)`, positive: c >= 0 };
+  };
+
+  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <div className="watchlist-container">
       <h2 className="section-title">My Stock Watchlist</h2>
@@ -114,28 +237,47 @@ export default function WatchlistTab({ allStocks }) {
             <thead>
               <tr>
                 <th>Symbol</th>
-                <th>Name</th>
-                <th>Added</th>
+                <th className="wl-col-name">Name</th>
+                <th>Price</th>
+                <th>Change</th>
                 <th style={{ textAlign: 'right' }}>Action</th>
               </tr>
             </thead>
             <tbody>
-              {watchlist.map((item) => (
-                <tr key={item.symbol}>
-                  <td><span className="watchlist-symbol">{item.symbol}</span></td>
-                  <td>{item.name}</td>
-                  <td className="watchlist-date">{item.addedAt}</td>
-                  <td style={{ textAlign: 'right' }}>
-                    <button
-                      className="watchlist-remove-btn"
-                      onClick={() => removeFromWatchlist(item.symbol)}
-                      title="Remove from watchlist"
-                    >
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {watchlist.map((item) => {
+                const priceData = prices[item.symbol];
+                const change = formatChange(priceData?.change, priceData?.percentChange);
+                return (
+                  <tr key={item.symbol}>
+                    <td>
+                      <span className="watchlist-symbol">{item.symbol}</span>
+                    </td>
+                    <td className="wl-col-name">{item.name}</td>
+                    <td className="wl-price-cell">
+                      {priceData?.live && <span className="wl-live-dot" />}
+                      <span className="wl-price">{formatPrice(priceData?.currentPrice)}</span>
+                    </td>
+                    <td>
+                      {change ? (
+                        <span className={`wl-change ${change.positive ? 'wl-change--up' : 'wl-change--down'}`}>
+                          {change.text}
+                        </span>
+                      ) : (
+                        <span className="wl-loading">…</span>
+                      )}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <button
+                        className="watchlist-remove-btn"
+                        onClick={() => removeFromWatchlist(item.symbol)}
+                        title="Remove from watchlist"
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

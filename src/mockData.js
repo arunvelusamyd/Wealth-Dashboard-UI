@@ -217,14 +217,14 @@ const dbsSrsUnitTrusts = {
     {
       assetClass: 'BO',
       holdings: [
-        { productName: 'SSB GX24100H 341001', marketVal: { currency: 'SGD', value: '1500.0' }, totalCost: { currency: '1500.0', value: 'SGD' } },
+        { productName: 'SSB PL83749X 627384', marketVal: { currency: 'SGD', value: '1500.0' }, totalCost: { currency: '1500.0', value: 'SGD' } },
       ],
     },
     {
       assetClass: 'EQ',
       holdings: [
-        { productName: 'TB BS26101E 260721', marketVal: { currency: 'SGD', value: '1389.79' }, totalCost: { currency: '1358.24', value: 'SGD' } },
-        { productName: 'TB BS26102F 260804', marketVal: { currency: 'SGD', value: '1419.58' }, totalCost: { currency: '1383.34', value: 'SGD' } },
+        { productName: 'TB NR59214M 813047', marketVal: { currency: 'SGD', value: '1389.79' }, totalCost: { currency: '1358.24', value: 'SGD' } },
+        { productName: 'TB KT71638D 492715', marketVal: { currency: 'SGD', value: '1419.58' }, totalCost: { currency: '1383.34', value: 'SGD' } },
       ],
     },
     {
@@ -316,6 +316,36 @@ export const mockSubscriptions = [
 ];
 
 // Mock ticker search results — keyed by lowercase query prefix for DEV_MODE typeahead
+const MOCK_PRICE_TABLE = {
+  AAPL:  { currentPrice: 213.49, change:  1.23, percentChange:  0.58 },
+  AMZN:  { currentPrice: 194.50, change:  3.12, percentChange:  1.63 },
+  GOOGL: { currentPrice: 162.23, change: -0.87, percentChange: -0.53 },
+  GOOG:  { currentPrice: 161.80, change: -0.90, percentChange: -0.55 },
+  MSFT:  { currentPrice: 378.15, change:  2.54, percentChange:  0.68 },
+  META:  { currentPrice: 502.30, change: -4.50, percentChange: -0.89 },
+  NVDA:  { currentPrice: 821.40, change: 15.20, percentChange:  1.88 },
+  TSLA:  { currentPrice: 248.42, change: -3.21, percentChange: -1.27 },
+  NFLX:  { currentPrice: 628.90, change:  8.75, percentChange:  1.41 },
+  AMD:   { currentPrice: 168.30, change: -2.10, percentChange: -1.23 },
+  INTC:  { currentPrice:  42.15, change:  0.35, percentChange:  0.84 },
+  BABA:  { currentPrice:  85.60, change:  1.10, percentChange:  1.30 },
+  TSM:   { currentPrice: 142.75, change:  2.30, percentChange:  1.64 },
+  SBUX:  { currentPrice:  79.40, change: -0.60, percentChange: -0.75 },
+  DIS:   { currentPrice: 112.80, change:  1.45, percentChange:  1.30 },
+  JPM:   { currentPrice: 198.60, change:  0.90, percentChange:  0.46 },
+  BAC:   { currentPrice:  38.25, change: -0.15, percentChange: -0.39 },
+  V:     { currentPrice: 276.40, change:  1.80, percentChange:  0.66 },
+  MA:    { currentPrice: 462.10, change:  3.20, percentChange:  0.70 },
+  PFE:   { currentPrice:  27.85, change: -0.30, percentChange: -1.07 },
+};
+
+export const getMockPrice = (symbol) =>
+  MOCK_PRICE_TABLE[symbol] || {
+    currentPrice: +(50 + Math.random() * 450).toFixed(2),
+    change: +((Math.random() - 0.5) * 5).toFixed(2),
+    percentChange: +((Math.random() - 0.5) * 3).toFixed(2),
+  };
+
 export const mockTickerSearch = (query) => {
   const q = query.toLowerCase();
   const pool = [
