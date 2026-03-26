@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Client } from '@stomp/stompjs';
-import { DEV_MODE, WS_URL } from '../devConfig';
-import { mockTickerSearch, getMockPrice } from '../mockData';
+import { DEV_MODE, WS_URL } from '../config/devConfig';
+import { mockTickerSearch, getMockPrice } from '../mocks/mockData';
 import { formatCurrency } from '../utils/formatCurrency';
 
 export default function WatchlistTab({ allStocks }) {

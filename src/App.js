@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Filler } from 'chart.js';
-import { mockBanks, mockBankPortfolios } from './mockData';
-import { DEV_MODE } from './devConfig';
+import { mockBanks, mockBankPortfolios } from './mocks/mockData';
+import { DEV_MODE } from './config/devConfig';
 import PortfolioOverview from './components/PortfolioOverview';
 import WatchlistTab from './components/WatchlistTab';
 import SubscriptionsTab from './components/SubscriptionsTab';
+import FundamentalsTab from './components/FundamentalsTab';
 import ChatDrawer from './components/ChatDrawer';
 import './App.css';
 
@@ -14,7 +15,7 @@ ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointE
 const validStocks = (items) =>
   (items || []).filter(item => item.code && item.name);
 
-const TABS = ['Portfolio Overview', 'Watchlist', 'Subscriptions'];
+const TABS = ['Portfolio Overview', 'Watchlist', 'Subscriptions', 'Fundamentals'];
 
 function App({ keycloak }) {
   const [loading, setLoading]             = useState(false);
@@ -288,7 +289,10 @@ function App({ keycloak }) {
         {selectedTab === 'Subscriptions' && (
           <SubscriptionsTab />
         )}
-        {selectedTab !== 'Watchlist' && selectedTab !== 'Subscriptions' && (
+        {selectedTab === 'Fundamentals' && (
+          <FundamentalsTab />
+        )}
+        {selectedTab !== 'Watchlist' && selectedTab !== 'Subscriptions' && selectedTab !== 'Fundamentals' && (
           <PortfolioOverview
             portfolioData={portfolioData}
             banks={banks}

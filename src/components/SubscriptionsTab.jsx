@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { mockSubscriptions } from '../mockData';
+import { mockSubscriptions } from '../mocks/mockData';
 
 const SUB_CATEGORIES = [
   'Streaming', 'Utilities', 'Insurance', 'Loan / EMI',

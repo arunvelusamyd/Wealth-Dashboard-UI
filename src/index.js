@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
-import keycloak from './keycloak';
-import mockKeycloak from './mockKeycloak';
-import { DEV_MODE } from './devConfig';
+import keycloak from './config/keycloak';
+import mockKeycloak from './mocks/mockKeycloak';
+import { DEV_MODE } from './config/devConfig';
 
 function Root() {
   // In dev mode we are already "initialized" — no Keycloak round-trip needed
