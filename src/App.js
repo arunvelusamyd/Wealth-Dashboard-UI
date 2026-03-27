@@ -306,7 +306,7 @@ function App({ keycloak }) {
         )}
       </div>
 
-      <ChatDrawer keycloak={keycloak} />
+      <ChatDrawer keycloak={keycloak} selectedTab={selectedTab} />
     </div>
   );
 }

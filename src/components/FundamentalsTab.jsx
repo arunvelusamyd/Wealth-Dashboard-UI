@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { DEV_MODE } from '../config/devConfig';
 import { mockTickerSearch, getMockFundamentals } from '../mocks/mockData';
 
@@ -140,6 +140,16 @@ export default function FundamentalsTab() {
 
   const fetch1 = useCallback((sym) => loadFundamentals(sym, setData1, setLoading1, setError1), [loadFundamentals]);
   const fetch2 = useCallback((sym) => loadFundamentals(sym, setData2, setLoading2, setError2), [loadFundamentals]);
+
+  // Keep sessionStorage in sync so ChatDrawer can read fundamentals context
+  useEffect(() => {
+    const stocks = [data1, data2].filter(Boolean);
+    if (stocks.length > 0) {
+      sessionStorage.setItem('fundTabContext', JSON.stringify({ stocks }));
+    } else {
+      sessionStorage.removeItem('fundTabContext');
+    }
+  }, [data1, data2]);
 
   const hasData = data1 || data2;
 
