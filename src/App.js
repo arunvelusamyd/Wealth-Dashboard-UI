@@ -6,6 +6,7 @@ import PortfolioOverview from './components/PortfolioOverview';
 import WatchlistTab from './components/WatchlistTab';
 import SubscriptionsTab from './components/SubscriptionsTab';
 import FundamentalsTab from './components/FundamentalsTab';
+import TechnicalAnalysisTab from './components/TechnicalAnalysisTab';
 import ChatDrawer from './components/ChatDrawer';
 import './App.css';
 
@@ -15,7 +16,7 @@ ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointE
 const validStocks = (items) =>
   (items || []).filter(item => item.code && item.name);
 
-const TABS = ['Portfolio Overview', 'Watchlist', 'Subscriptions', 'Fundamentals'];
+const TABS = ['Portfolio Overview', 'Watchlist', 'Subscriptions', 'Fundamentals', 'Technical Analysis'];
 
 function App({ keycloak }) {
   const [loading, setLoading]             = useState(false);
@@ -292,7 +293,10 @@ function App({ keycloak }) {
         {selectedTab === 'Fundamentals' && (
           <FundamentalsTab />
         )}
-        {selectedTab !== 'Watchlist' && selectedTab !== 'Subscriptions' && selectedTab !== 'Fundamentals' && (
+        {selectedTab === 'Technical Analysis' && (
+          <TechnicalAnalysisTab />
+        )}
+        {selectedTab !== 'Watchlist' && selectedTab !== 'Subscriptions' && selectedTab !== 'Fundamentals' && selectedTab !== 'Technical Analysis' && (
           <PortfolioOverview
             portfolioData={portfolioData}
             banks={banks}

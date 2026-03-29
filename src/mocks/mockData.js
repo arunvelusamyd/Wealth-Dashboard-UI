@@ -383,6 +383,44 @@ export const getMockFundamentals = (symbol) => {
   };
 };
 
+// ── Mock technical analysis for DEV_MODE ─────────────────────────────────────
+
+const MOCK_TECHNICAL = {
+  AAPL:  { currentPrice: 213.49, change:  1.23, percentChange:  0.58, high: 215.10, low: 211.80, open: 212.30, previousClose: 212.26, supportLevels: [205.00, 200.50, 195.25], resistanceLevels: [220.00, 225.75, 230.00], rsi: 58.3, rsiSignal: 'Neutral' },
+  MSFT:  { currentPrice: 378.15, change:  2.54, percentChange:  0.68, high: 380.00, low: 374.50, open: 375.60, previousClose: 375.61, supportLevels: [370.00, 362.50, 355.00], resistanceLevels: [385.00, 392.00, 400.00], rsi: 62.7, rsiSignal: 'Neutral' },
+  TSLA:  { currentPrice: 248.42, change: -3.21, percentChange: -1.27, high: 254.00, low: 246.10, open: 252.00, previousClose: 251.63, supportLevels: [240.00, 230.00, 220.50], resistanceLevels: [255.00, 265.00, 275.00], rsi: 42.1, rsiSignal: 'Neutral' },
+  NVDA:  { currentPrice: 821.40, change: 15.20, percentChange:  1.88, high: 830.00, low: 808.00, open: 810.00, previousClose: 806.20, supportLevels: [800.00, 780.00, 760.00], resistanceLevels: [840.00, 860.00, 900.00], rsi: 71.4, rsiSignal: 'Overbought' },
+  AMZN:  { currentPrice: 194.50, change:  3.12, percentChange:  1.63, high: 196.00, low: 191.20, open: 191.80, previousClose: 191.38, supportLevels: [188.00, 182.50, 175.00], resistanceLevels: [198.00, 205.00, 212.00], rsi: 55.8, rsiSignal: 'Neutral' },
+  GOOGL: { currentPrice: 162.23, change: -0.87, percentChange: -0.53, high: 164.50, low: 161.00, open: 163.50, previousClose: 163.10, supportLevels: [158.00, 153.50, 148.00], resistanceLevels: [166.00, 170.00, 175.00], rsi: 47.9, rsiSignal: 'Neutral' },
+  META:  { currentPrice: 502.30, change: -4.50, percentChange: -0.89, high: 509.00, low: 499.50, open: 507.00, previousClose: 506.80, supportLevels: [492.00, 480.00, 465.00], resistanceLevels: [512.00, 525.00, 540.00], rsi: 44.2, rsiSignal: 'Neutral' },
+  AMD:   { currentPrice: 168.30, change: -2.10, percentChange: -1.23, high: 172.00, low: 167.00, open: 170.50, previousClose: 170.40, supportLevels: [162.00, 155.00, 148.00], resistanceLevels: [175.00, 182.00, 190.00], rsi: 38.6, rsiSignal: 'Neutral' },
+  JPM:   { currentPrice: 198.60, change:  0.90, percentChange:  0.46, high: 200.00, low: 197.00, open: 197.80, previousClose: 197.70, supportLevels: [194.00, 188.00, 180.00], resistanceLevels: [202.00, 208.00, 215.00], rsi: 60.1, rsiSignal: 'Neutral' },
+  INTC:  { currentPrice:  42.15, change:  0.35, percentChange:  0.84, high:  43.00, low:  41.50, open:  41.90, previousClose:  41.80, supportLevels: [ 40.00,  38.00,  35.50], resistanceLevels: [ 44.00,  46.50,  50.00], rsi: 28.4, rsiSignal: 'Oversold' },
+};
+
+export const getMockTechnical = (symbol, resolution = 'D') => {
+  const data = MOCK_TECHNICAL[symbol.toUpperCase()];
+  if (data) return { symbol: symbol.toUpperCase(), resolution, ...data };
+  // Generic fallback
+  const price = +(50 + Math.random() * 450).toFixed(2);
+  const spread = price * 0.08;
+  return {
+    symbol: symbol.toUpperCase(),
+    resolution,
+    currentPrice: price,
+    change: +((Math.random() - 0.5) * 5).toFixed(2),
+    percentChange: +((Math.random() - 0.5) * 3).toFixed(2),
+    high: +(price + price * 0.01).toFixed(2),
+    low:  +(price - price * 0.01).toFixed(2),
+    open: +(price + (Math.random() - 0.5) * 2).toFixed(2),
+    previousClose: +(price - (Math.random() - 0.5) * 3).toFixed(2),
+    supportLevels:    [+(price - spread * 0.4).toFixed(2), +(price - spread * 0.7).toFixed(2), +(price - spread).toFixed(2)],
+    resistanceLevels: [+(price + spread * 0.4).toFixed(2), +(price + spread * 0.7).toFixed(2), +(price + spread).toFixed(2)],
+    rsi: +(25 + Math.random() * 50).toFixed(1),
+    rsiSignal: 'Neutral',
+  };
+};
+
 // ── Mock ticker typeahead ─────────────────────────────────────────────────────
 
 export const mockTickerSearch = (query) => {
