@@ -585,3 +585,25 @@ export const mockTickerSearch = (query) => {
     .filter(r => r.symbol.toLowerCase().startsWith(q) || r.description.toLowerCase().includes(q))
     .slice(0, 8);
 };
+
+// ── Mock accounts for Fund Transfer tab ──────────────────────────────────────
+
+export const mockTransferAccounts = [
+  { id: 'dbs-savings',  label: 'DBS POSB Everyday Savings ****3635', bank: 'DBS',  balance: 6839.21  },
+  { id: 'uob-savings',  label: 'UOB One Account ****2847',           bank: 'UOB',  balance: 12450.00 },
+  { id: 'ocbc-savings', label: 'OCBC 360 Account ****9021',          bank: 'OCBC', balance: 8320.75  },
+  { id: 'sc-savings',   label: 'SC BonusSaver ****4411',             bank: 'SC',   balance: 5100.00  },
+];
+
+// ── Mock recent transfers for Fund Transfer tab ───────────────────────────────
+
+export const mockRecentTransfers = [
+  { id: 't1', type: 'paynow', summary: 'PayNow → +65 9123 4567',       date: '2026-03-28', currency: 'SGD', amount: 500.00,  status: 'Success' },
+  { id: 't2', type: 'bill',   summary: 'Bill → SP Group (Electricity)', date: '2026-03-25', currency: 'SGD', amount: 112.40,  status: 'Success' },
+  { id: 't3', type: 'fast',   summary: 'FAST → UOB ****8834',           date: '2026-03-20', currency: 'SGD', amount: 2000.00, status: 'Success' },
+  { id: 't4', type: 'intl',   summary: 'TT USD → HDFC Bank India',      date: '2026-03-15', currency: 'USD', amount: 800.00,  status: 'Success' },
+  { id: 't5', type: 'own',    summary: 'DBS Savings → OCBC 360',        date: '2026-03-10', currency: 'SGD', amount: 3000.00, status: 'Success' },
+  { id: 't6', type: 'giro',   summary: 'GIRO Monthly → UOB (Rent)',     date: '2026-03-01', currency: 'SGD', amount: 1800.00, status: 'Success' },
+  { id: 't7', type: 'bill',   summary: 'Bill → StarHub Broadband',      date: '2026-02-28', currency: 'SGD', amount: 59.90,   status: 'Success' },
+  { id: 't8', type: 'paynow', summary: 'PayNow → S8231234A',            date: '2026-02-20', currency: 'SGD', amount: 250.00,  status: 'Failed'  },
+];
