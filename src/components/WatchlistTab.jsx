@@ -1,8 +1,218 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Line } from 'react-chartjs-2';
 import { Client } from '@stomp/stompjs';
 import { DEV_MODE, WS_URL } from '../config/devConfig';
-import { mockTickerSearch, getMockPrice } from '../mocks/mockData';
+import { mockTickerSearch, getMockPrice, getMockHistory } from '../mocks/mockData';
 import { formatCurrency } from '../utils/formatCurrency';
+
+// ── Stock history modal ───────────────────────────────────────────────────────
+
+const TIMEFRAMES = ['5D', '1M', 'YTD', '1Y', '5Y'];
+
+function StockHistoryModal({ symbol, name, priceData, onClose }) {
+  const [period,  setPeriod]  = useState('YTD');
+  const [view,    setView]    = useState('chart');   // 'chart' | 'table'
+  const [history, setHistory] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState('');
+
+  useEffect(() => {
+    setLoading(true);
+    setError('');
+    setHistory(null);
+
+    if (DEV_MODE) {
+      const timer = setTimeout(() => {
+        setHistory(getMockHistory(symbol, period));
+        setLoading(false);
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+
+    fetch(`/api/stocks/${encodeURIComponent(symbol)}/history?period=${period}`)
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(data => { setHistory(data); setLoading(false); })
+      .catch(() => { setError('Could not load price history. Please try again.'); setLoading(false); });
+  }, [symbol, period]);
+
+  const isUp = history ? history.changeAmount >= 0 : true;
+  const lineColor = isUp ? '#27ae60' : '#e74c3c';
+  const fillColor = isUp ? 'rgba(39,174,96,0.08)' : 'rgba(231,76,60,0.08)';
+
+  const chartData = history ? {
+    labels: history.labels,
+    datasets: [{
+      data: history.prices,
+      borderColor: lineColor,
+      backgroundColor: fillColor,
+      fill: true,
+      tension: 0.3,
+      pointRadius: period === '5D' ? 4 : 0,
+      pointHoverRadius: 5,
+      pointHoverBackgroundColor: lineColor,
+      borderWidth: 2,
+    }],
+  } : null;
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => `$${ctx.parsed.y.toFixed(2)}`,
+        },
+        backgroundColor: '#1a1a2e',
+        titleColor: '#ccc',
+        bodyColor: '#fff',
+        padding: 10,
+      },
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: {
+          color: '#999',
+          font: { size: 11 },
+          maxTicksLimit: period === '5D' ? 5 : 7,
+          maxRotation: 0,
+        },
+        border: { display: false },
+      },
+      y: {
+        position: 'right',
+        grid: { color: 'rgba(0,0,0,0.04)', drawBorder: false },
+        ticks: {
+          color: '#999',
+          font: { size: 11 },
+          callback: v => `$${v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v.toFixed(0)}`,
+        },
+        border: { display: false },
+      },
+    },
+    interaction: { mode: 'index', intersect: false },
+  };
+
+  return (
+    <div className="modal-overlay wl-history-overlay" onClick={onClose}>
+      <div className="wl-history-panel" onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="wl-history-header">
+          <div>
+            <span className="wl-history-symbol">{symbol}</span>
+            <span className="wl-history-name">{name}</span>
+          </div>
+          <button className="wl-history-close" onClick={onClose}>✕</button>
+        </div>
+
+        {/* Current price row */}
+        {priceData?.currentPrice != null && (
+          <div className="wl-history-price-row">
+            <span className="wl-history-price">${priceData.currentPrice.toFixed(2)}</span>
+            {priceData.change != null && (
+              <span className={`wl-history-live-change ${priceData.change >= 0 ? 'wl-change--up' : 'wl-change--down'}`}>
+                {priceData.change >= 0 ? '+' : ''}{priceData.change.toFixed(2)}
+                &nbsp;({priceData.change >= 0 ? '+' : ''}{priceData.percentChange?.toFixed(2)}%)
+              </span>
+            )}
+            {priceData.live && <span className="wl-live-dot" title="Live price" />}
+          </div>
+        )}
+
+        {/* Period change summary */}
+        {history && (
+          <div className={`wl-history-period-change ${isUp ? 'wl-change--up' : 'wl-change--down'}`}>
+            {isUp ? '▲' : '▼'}&nbsp;
+            {isUp ? '+' : ''}{history.changeAmount.toFixed(2)}
+            &nbsp;({isUp ? '+' : ''}{history.changePercent.toFixed(2)}%)
+            &nbsp;over selected period
+          </div>
+        )}
+
+        {/* Controls row: timeframe + view toggle */}
+        <div className="wl-controls-row">
+          <div className="wl-timeframe-bar">
+            {TIMEFRAMES.map(tf => (
+              <button key={tf}
+                className={`wl-tf-btn${period === tf ? ' wl-tf-btn--active' : ''}`}
+                onClick={() => setPeriod(tf)}>
+                {tf}
+              </button>
+            ))}
+          </div>
+
+          <div className="wl-view-toggle">
+            <button
+              className={`wl-view-btn${view === 'chart' ? ' wl-view-btn--active' : ''}`}
+              onClick={() => setView('chart')}
+              title="Chart view">
+              ▲ Chart
+            </button>
+            <button
+              className={`wl-view-btn${view === 'table' ? ' wl-view-btn--active' : ''}`}
+              onClick={() => setView('table')}
+              title="Table view">
+              ≡ Table
+            </button>
+          </div>
+        </div>
+
+        {/* Loading / error shared between both views */}
+        {loading && <div className="wl-chart-loading"><div className="wl-chart-spinner" />Loading…</div>}
+        {error   && <div className="wl-chart-error">{error}</div>}
+
+        {/* Chart view */}
+        {view === 'chart' && !loading && !error && (
+          <div className="wl-chart-area">
+            {chartData && <Line data={chartData} options={chartOptions} />}
+          </div>
+        )}
+
+        {/* Table view */}
+        {view === 'table' && !loading && !error && history && (
+          <div className="wl-table-wrap">
+            <table className="wl-history-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Close</th>
+                  <th>Change</th>
+                  <th>Change %</th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* Newest first */}
+                {[...history.labels].reverse().map((label, ri) => {
+                  const i       = history.prices.length - 1 - ri;
+                  const price   = history.prices[i];
+                  const prev    = i > 0 ? history.prices[i - 1] : null;
+                  const change  = prev != null ? price - prev : null;
+                  const changePct = prev != null ? (change / prev) * 100 : null;
+                  const up      = change == null ? null : change >= 0;
+                  return (
+                    <tr key={label + i}>
+                      <td className="wl-ht-date">{label}</td>
+                      <td className="wl-ht-price">${price.toFixed(2)}</td>
+                      <td className={change == null ? '' : up ? 'wl-change--up' : 'wl-change--down'}>
+                        {change == null ? '—' : `${up ? '+' : ''}${change.toFixed(2)}`}
+                      </td>
+                      <td className={changePct == null ? '' : up ? 'wl-change--up' : 'wl-change--down'}>
+                        {changePct == null ? '—' : `${up ? '+' : ''}${changePct.toFixed(2)}%`}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
 
 export default function WatchlistTab({ allStocks }) {
   const [watchlist, setWatchlist] = useState(() => {
@@ -13,6 +223,7 @@ export default function WatchlistTab({ allStocks }) {
   const [tickerSuggestions, setTickerSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [prices, setPrices] = useState({});
+  const [selectedStock, setSelectedStock] = useState(null); // { symbol, name }
 
   const searchDebounceRef = useRef(null);
   const stompClientRef = useRef(null);
@@ -248,7 +459,8 @@ export default function WatchlistTab({ allStocks }) {
                 const priceData = prices[item.symbol];
                 const change = formatChange(priceData?.change, priceData?.percentChange);
                 return (
-                  <tr key={item.symbol}>
+                  <tr key={item.symbol} className="wl-row-clickable"
+                    onClick={() => setSelectedStock({ symbol: item.symbol, name: item.name })}>
                     <td>
                       <span className="watchlist-symbol">{item.symbol}</span>
                     </td>
@@ -266,7 +478,7 @@ export default function WatchlistTab({ allStocks }) {
                         <span className="wl-loading">…</span>
                       )}
                     </td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td style={{ textAlign: 'right' }} onClick={e => e.stopPropagation()}>
                       <button
                         className="watchlist-remove-btn"
                         onClick={() => removeFromWatchlist(item.symbol)}
@@ -282,6 +494,15 @@ export default function WatchlistTab({ allStocks }) {
           </table>
         )}
       </div>
+
+      {selectedStock && (
+        <StockHistoryModal
+          symbol={selectedStock.symbol}
+          name={selectedStock.name}
+          priceData={prices[selectedStock.symbol]}
+          onClose={() => setSelectedStock(null)}
+        />
+      )}
 
       {allStocks.length > 0 && (
         <div className="info-card watchlist-card" style={{ marginTop: '20px' }}>

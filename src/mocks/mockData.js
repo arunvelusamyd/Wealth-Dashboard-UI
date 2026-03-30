@@ -438,6 +438,49 @@ export const getMockPrice = (symbol) =>
     percentChange: +((Math.random() - 0.5) * 3).toFixed(2),
   };
 
+// ── Mock price history for DEV_MODE ──────────────────────────────────────────
+
+export function getMockHistory(symbol, period = 'YTD') {
+  const base = getMockPrice(symbol);
+  const endPrice = base.currentPrice;
+
+  // Number of data points per period
+  const today = new Date();
+  const ytdDays = Math.floor((today - new Date(today.getFullYear(), 0, 1)) / 86400000);
+  const counts  = { '5D': 5, '1M': 22, 'YTD': Math.max(ytdDays, 10), '1Y': 252, '5Y': 260 };
+  const n = counts[period] || ytdDays;
+
+  // Build prices backwards from endPrice using a random walk
+  const prices = [endPrice];
+  for (let i = 1; i < n; i++) {
+    const prev   = prices[0];
+    const change = prev * (Math.random() * 0.028 - 0.012); // slight downward bias = upward trend forward
+    prices.unshift(+(prev - change).toFixed(2));
+  }
+
+  // Build labels
+  const labels = prices.map((_, i) => {
+    const d = new Date(today);
+    if (period === '5Y') {
+      d.setDate(d.getDate() - (n - 1 - i) * 7);
+      return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    } else if (period === '5D') {
+      d.setDate(d.getDate() - (n - 1 - i));
+      return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    } else {
+      d.setDate(d.getDate() - (n - 1 - i));
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+  });
+
+  const firstPrice    = prices[0];
+  const lastPrice     = prices[prices.length - 1];
+  const changeAmount  = +(lastPrice - firstPrice).toFixed(2);
+  const changePercent = +((changeAmount / firstPrice) * 100).toFixed(2);
+
+  return { symbol, period, labels, prices, firstPrice, lastPrice, changeAmount, changePercent };
+}
+
 // ── Mock stock fundamentals for DEV_MODE ─────────────────────────────────────
 
 const MOCK_FUNDAMENTALS = {

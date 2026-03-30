@@ -5,9 +5,15 @@
   box-sizing: border-box;
 }
 
-/* Prevent horizontal page scroll without breaking position:sticky on the header */
-html, body {
-  overflow-x: hidden;
+/* Prevent horizontal page scroll.
+   Use overflow-x: clip (not hidden) so it doesn't suppress vertical scroll on iOS. */
+html {
+  overflow-x: clip;
+}
+body {
+  overflow-x: clip;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .App {
@@ -824,7 +830,7 @@ html, body {
 
   .header-right { justify-content: center; }
 
-  .dashboard-content { padding: 156px 16px 16px; }
+  .dashboard-content { padding: 210px 16px 16px; }
 
   /* Cards — reduce padding and allow horizontal scroll for tables */
   .info-card { padding: 16px; overflow-x: auto; }
@@ -893,7 +899,7 @@ html, body {
   .header-nav { grid-template-columns: repeat(3, 1fr); gap: 3px; }
   .nav-tab { padding: 6px 4px; font-size: 11px; }
 
-  .dashboard-content { padding: 140px 12px 12px; }
+  .dashboard-content { padding: 200px 12px 24px; }
 
   /* Single column metrics on small phones */
   .metrics-grid { grid-template-columns: 1fr; gap: 10px; }
@@ -1693,6 +1699,245 @@ html, body {
 @keyframes wl-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50%       { opacity: 0.4; transform: scale(0.7); }
+}
+
+/* ── Watchlist clickable rows ─────────────────────────────────────────────── */
+
+.wl-row-clickable {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.wl-row-clickable:hover {
+  background: #f0f6ff;
+}
+.wl-row-clickable:hover .watchlist-symbol {
+  color: #4A90E2;
+  text-decoration: underline;
+}
+
+/* ── Stock history modal ──────────────────────────────────────────────────── */
+
+.wl-history-overlay {
+  align-items: flex-end;         /* panel slides up from bottom on mobile */
+  padding: 0;
+}
+
+@media (min-width: 640px) {
+  .wl-history-overlay { align-items: center; padding: 20px; }
+}
+
+.wl-history-panel {
+  background: #fff;
+  border-radius: 16px 16px 0 0;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 24px 32px;
+  box-shadow: 0 -4px 30px rgba(0,0,0,0.15);
+  overflow: hidden;
+}
+
+@media (min-width: 640px) {
+  .wl-history-panel {
+    border-radius: 16px;
+    max-width: 720px;
+    max-height: 85vh;
+  }
+}
+
+.wl-history-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.wl-history-symbol {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-right: 10px;
+}
+.wl-history-name {
+  font-size: 14px;
+  color: #666;
+}
+.wl-history-close {
+  background: #f0f0f0;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 14px;
+  cursor: pointer;
+  color: #555;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.wl-history-close:hover { background: #ddd; }
+
+.wl-history-price-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.wl-history-price {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+.wl-history-live-change {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.wl-history-period-change {
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 16px;
+  opacity: 0.85;
+}
+
+/* Timeframe selector */
+.wl-timeframe-bar {
+  display: flex;
+  gap: 4px;
+  background: #f4f4f4;
+  border-radius: 8px;
+  padding: 4px;
+  width: fit-content;
+}
+.wl-tf-btn {
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.wl-tf-btn:hover { color: #1a1a2e; background: rgba(0,0,0,0.06); }
+.wl-tf-btn--active {
+  background: #fff;
+  color: #1a1a2e;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+}
+
+/* Controls row (timeframe + view toggle) */
+.wl-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+/* View toggle */
+.wl-view-toggle {
+  display: flex;
+  gap: 2px;
+  background: #f4f4f4;
+  border-radius: 8px;
+  padding: 4px;
+}
+.wl-view-btn {
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.wl-view-btn:hover { color: #1a1a2e; background: rgba(0,0,0,0.06); }
+.wl-view-btn--active {
+  background: #fff;
+  color: #1a1a2e;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+}
+
+/* Scrollable table view */
+.wl-table-wrap {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 10px;
+  min-height: 240px;
+  max-height: 420px;
+}
+.wl-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.wl-history-table thead th {
+  position: sticky;
+  top: 0;
+  background: #f8f9fa;
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #999;
+  border-bottom: 1px solid #eee;
+  z-index: 1;
+}
+.wl-history-table thead th:not(:first-child) { text-align: right; }
+.wl-history-table tbody td {
+  padding: 9px 14px;
+  border-bottom: 1px solid #f5f5f5;
+  vertical-align: middle;
+}
+.wl-history-table tbody tr:last-child td { border-bottom: none; }
+.wl-history-table tbody tr:hover { background: #fafbff; }
+.wl-ht-date  { color: #555; white-space: nowrap; }
+.wl-ht-price { font-weight: 600; color: #1a1a2e; text-align: right; }
+.wl-history-table td:not(:first-child):not(:nth-child(2)) { text-align: right; }
+.wl-history-table .wl-change--up   { color: #27ae60; font-weight: 600; text-align: right; }
+.wl-history-table .wl-change--down { color: #e74c3c; font-weight: 600; text-align: right; }
+
+/* Chart area */
+.wl-chart-area {
+  flex: 1;
+  min-height: 240px;
+  max-height: 380px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.wl-chart-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #888;
+  font-size: 14px;
+}
+.wl-chart-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #ddd;
+  border-top-color: #4A90E2;
+  border-radius: 50%;
+  animation: wl-spin 0.7s linear infinite;
+}
+@keyframes wl-spin { to { transform: rotate(360deg); } }
+.wl-chart-error {
+  color: #c0392b;
+  font-size: 14px;
+  background: #fff0ee;
+  border: 1px solid #f5c6c0;
+  border-radius: 8px;
+  padding: 12px 16px;
 }
 
 /* ── Fundamentals Tab ─────────────────────────────────────────────────────── */
