@@ -4,9 +4,9 @@
 
 Whenever the user says **"push these changes"**, follow these steps exactly:
 
-1. **Create a feature branch** named `feature/~{epochtime}` where `{epochtime}` is the current Unix epoch timestamp (e.g., `feature/~1743200000`).
+1. **Create a feature branch** named `feature/{epochtime}` where `{epochtime}` is the current Unix epoch timestamp (e.g., `feature/1743200000`). Note: `~` is not a valid git branch name character, so it is omitted.
    ```
-   git checkout -b feature/~$(date +%s)
+   git checkout -b feature/$(date +%s)
    ```
 
 2. **Security scan before committing** — inspect `git diff` (staged and unstaged changes) for:

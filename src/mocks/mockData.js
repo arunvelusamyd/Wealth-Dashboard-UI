@@ -2,6 +2,97 @@
 // Automatically used when the API or Keycloak is unreachable.
 // Set MOCK_MODE = true in App.js to always use this data during development.
 
+// ── Mock Cards (March 2026, demonstrates all 3 spend statuses) ────────────────
+// Card 1 (DBS): ~SGD 2,150 / 2,000 limit → RED  (over limit)
+// Card 2 (UOB): ~SGD 1,680 / 2,000 limit → AMBER (≥80%, day 30/31 = 97% of month)
+// Card 3 (OCBC): ~SGD 680 / 1,500 limit → GREEN (45%)
+// Card 4 (SC, weekly): ~SGD 380 / 500 limit → GREEN (76%)
+
+export const mockCards = [
+  {
+    id: 'card-1',
+    name: 'DBS Live Fresh',
+    bank: 'DBS',
+    lastFour: '4521',
+    cardType: 'Visa',
+    limitType: 'monthly',
+    limitAmount: 2000,
+    transactions: [
+      { id: 'c1t1',  description: 'Cold Storage',      amount: 200.00, date: '2026-03-01', category: 'Shopping'      },
+      { id: 'c1t2',  description: 'Grab Food',         amount: 180.00, date: '2026-03-03', category: 'Food & Dining' },
+      { id: 'c1t3',  description: 'Koi Bubble Tea',    amount: 45.00,  date: '2026-03-05', category: 'Food & Dining' },
+      { id: 'c1t4',  description: 'Shopee',            amount: 320.00, date: '2026-03-07', category: 'Shopping'      },
+      { id: 'c1t5',  description: 'NTUC FairPrice',    amount: 90.00,  date: '2026-03-09', category: 'Shopping'      },
+      { id: 'c1t6',  description: 'Grab',              amount: 25.00,  date: '2026-03-11', category: 'Transport'     },
+      { id: 'c1t7',  description: 'Zalora',            amount: 280.00, date: '2026-03-13', category: 'Shopping'      },
+      { id: 'c1t8',  description: 'Restaurant',        amount: 150.00, date: '2026-03-15', category: 'Food & Dining' },
+      { id: 'c1t9',  description: 'Uniqlo',            amount: 120.00, date: '2026-03-17', category: 'Shopping'      },
+      { id: 'c1t10', description: 'Electricity Bill',  amount: 85.00,  date: '2026-03-19', category: 'Utilities'     },
+      { id: 'c1t11', description: 'Gym Membership',    amount: 95.00,  date: '2026-03-21', category: 'Healthcare'    },
+      { id: 'c1t12', description: 'Date Night',        amount: 75.00,  date: '2026-03-23', category: 'Food & Dining' },
+      { id: 'c1t13', description: 'Lazada',            amount: 260.00, date: '2026-03-25', category: 'Shopping'      },
+      { id: 'c1t14', description: 'Weekend brunch',    amount: 225.00, date: '2026-03-28', category: 'Food & Dining' },
+    ],
+  },
+  {
+    id: 'card-2',
+    name: 'UOB One Card',
+    bank: 'UOB',
+    lastFour: '8834',
+    cardType: 'Mastercard',
+    limitType: 'monthly',
+    limitAmount: 2000,
+    transactions: [
+      { id: 'c2t1',  description: 'IKEA',              amount: 150.00, date: '2026-03-02', category: 'Shopping'      },
+      { id: 'c2t2',  description: 'Grab Food',         amount: 89.00,  date: '2026-03-04', category: 'Food & Dining' },
+      { id: 'c2t3',  description: 'H&M',               amount: 320.00, date: '2026-03-06', category: 'Shopping'      },
+      { id: 'c2t4',  description: 'MRT Top-Up',        amount: 45.00,  date: '2026-03-08', category: 'Transport'     },
+      { id: 'c2t5',  description: 'Spotify',           amount: 180.00, date: '2026-03-10', category: 'Entertainment' },
+      { id: 'c2t6',  description: 'Watsons',           amount: 95.00,  date: '2026-03-12', category: 'Healthcare'    },
+      { id: 'c2t7',  description: 'BreadTalk',         amount: 260.00, date: '2026-03-14', category: 'Food & Dining' },
+      { id: 'c2t8',  description: 'Cathay Cinema',     amount: 120.00, date: '2026-03-17', category: 'Entertainment' },
+      { id: 'c2t9',  description: 'Guardian',          amount: 75.00,  date: '2026-03-20', category: 'Healthcare'    },
+      { id: 'c2t10', description: 'Foodpanda',         amount: 80.00,  date: '2026-03-23', category: 'Food & Dining' },
+      { id: 'c2t11', description: 'Amazon SG',         amount: 45.00,  date: '2026-03-26', category: 'Shopping'      },
+      { id: 'c2t12', description: 'Hawker dinner',     amount: 221.00, date: '2026-03-29', category: 'Food & Dining' },
+    ],
+  },
+  {
+    id: 'card-3',
+    name: 'OCBC 365',
+    bank: 'OCBC',
+    lastFour: '2271',
+    cardType: 'Visa',
+    limitType: 'monthly',
+    limitAmount: 1500,
+    transactions: [
+      { id: 'c3t1', description: 'Shell Petrol',       amount: 95.00,  date: '2026-03-05', category: 'Transport'     },
+      { id: 'c3t2', description: 'NTUC FairPrice',     amount: 180.00, date: '2026-03-10', category: 'Shopping'      },
+      { id: 'c3t3', description: 'Coffee Bean',        amount: 45.00,  date: '2026-03-14', category: 'Food & Dining' },
+      { id: 'c3t4', description: 'Singtel Bill',       amount: 120.00, date: '2026-03-17', category: 'Utilities'     },
+      { id: 'c3t5', description: 'Ya Kun Kaya Toast',  amount: 80.00,  date: '2026-03-21', category: 'Food & Dining' },
+      { id: 'c3t6', description: 'Grab',               amount: 55.00,  date: '2026-03-24', category: 'Transport'     },
+      { id: 'c3t7', description: 'Popular Bookstore',  amount: 105.00, date: '2026-03-28', category: 'Shopping'      },
+    ],
+  },
+  {
+    id: 'card-4',
+    name: 'SC Simply Cash',
+    bank: 'Standard Chartered',
+    lastFour: '9103',
+    cardType: 'Visa',
+    limitType: 'weekly',
+    limitAmount: 500,
+    transactions: [
+      { id: 'c4t1', description: 'Grab Food',          amount: 100.00, date: '2026-03-24', category: 'Food & Dining' },
+      { id: 'c4t2', description: 'Starbucks',          amount: 85.00,  date: '2026-03-25', category: 'Food & Dining' },
+      { id: 'c4t3', description: 'Uniqlo',             amount: 65.00,  date: '2026-03-26', category: 'Shopping'      },
+      { id: 'c4t4', description: 'MRT Top-Up',         amount: 45.00,  date: '2026-03-27', category: 'Transport'     },
+      { id: 'c4t5', description: 'Dinner',             amount: 85.00,  date: '2026-03-28', category: 'Food & Dining' },
+    ],
+  },
+];
+
 export const mockBanks = [
   { code: 'SC',   name: 'Standard Chartered', color: '#0099A8', available: true },
   { code: 'UOB',  name: 'United Overseas Bank', color: '#005DAA', available: true },
